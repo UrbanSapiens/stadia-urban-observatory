@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stadia Urban Observatory</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.1/maplibre-gl.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}html,body{overflow-x:hidden}
+.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{display:none!important}
+.maplibregl-popup-content{background:#1a1a1b!important;color:#ddd!important;border-radius:6px!important;padding:8px 10px!important;box-shadow:0 4px 20px rgba(0,0,0,0.5)!important}
+.maplibregl-popup-tip{border-top-color:#1a1a1b!important}
+.lightbox-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;background:rgba(10,10,11,0.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center}
+.lightbox-content{width:90vw;height:88vh;border-radius:10px;overflow:hidden;border:1px solid #2a2a2b;position:relative}
+.lightbox-close{position:absolute;top:10px;right:14px;z-index:10;background:rgba(10,10,11,0.7);border:1px solid #333;border-radius:4px;color:#aaa;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit}
+.lightbox-title{position:absolute;top:10px;left:14px;z-index:10;background:rgba(10,10,11,0.7);border-radius:4px;padding:4px 10px;font-size:11px;color:#888;font-weight:600}
+.expand-btn{position:absolute;top:6px;right:6px;z-index:5;background:rgba(10,10,11,0.6);border:1px solid #333;border-radius:3px;color:#888;padding:2px 6px;font-size:9px;cursor:pointer;font-family:inherit;opacity:0;transition:opacity 0.2s}
+.map-panel:hover .expand-btn{opacity:1}
+.pnl-tooltip{position:absolute;top:100%;left:0;z-index:200;background:rgba(10,10,11,0.95);border:1px solid #2a2a2b;border-radius:6px;padding:8px 12px;font-size:10px;color:#888;line-height:1.5;max-width:260px;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity 0.15s,transform 0.15s;white-space:normal;font-weight:400;box-shadow:0 4px 20px rgba(0,0,0,0.6)}
+.pnl-title-wrap{position:relative;display:inline-block;cursor:default}
+.pnl-title-wrap:hover .pnl-tooltip{opacity:1;transform:translateY(2px)}
+.ob-card{position:fixed;bottom:80px;right:24px;width:280px;background:rgba(14,14,15,0.95);border:1px solid #2a2a2b;border-radius:12px;padding:18px 22px;backdrop-filter:blur(20px);box-shadow:0 8px 40px rgba(0,0,0,0.6);z-index:10000;pointer-events:all}
+.ob-card.ob-in{animation:obSlideIn 0.45s cubic-bezier(0.34,1.2,0.64,1) forwards}
+.ob-card.ob-out{animation:obSlideOut 0.3s ease-in forwards}
+@keyframes obSlideIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
+@keyframes obSlideOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(60px)}}
+.ob-step{font-size:9px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.ob-title{font-size:13px;font-weight:700;color:#ddd;margin-bottom:6px;line-height:1.3}
+.ob-body{font-size:11px;color:#666;line-height:1.6;margin-bottom:14px}
+.ob-dots{display:flex;gap:5px;align-items:center;margin-bottom:14px}
+.ob-dot{width:5px;height:5px;border-radius:50%;background:#2a2a2b;transition:background 0.2s}
+.ob-dot.active{background:#4a9eff}
+.ob-actions{display:flex;align-items:center;justify-content:space-between}
+.ob-btn{background:#4a9eff;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:7px 16px;cursor:pointer;font-family:inherit;transition:background 0.15s}
+.ob-btn:hover{background:#3a8eef}
+.ob-skip{background:none;border:none;color:#444;font-size:10px;cursor:pointer;font-family:inherit;padding:0}
+.ob-skip:hover{color:#666}
+.esc-toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);animation:toastIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;z-index:9999;pointer-events:none}
+.esc-toast.out{animation:toastOut 0.4s ease-in forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(-50%) translateY(0)}to{opacity:0;transform:translateX(-50%) translateY(8px)}}
+@keyframes kbdPulse{0%,100%{box-shadow:0 0 0 0 rgba(74,158,255,0.4)}50%{box-shadow:0 0 0 6px rgba(74,158,255,0)}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.1/maplibre-gl.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const IX=[
+ {name:"Estadio Monumental de Nunez",slug:"estadio-monumental-de-nunez",lat:-34.5453062,lng:-58.44977489999999,event:"",year:0,places:4957},
+  {name:"Estadio Presidente Peron, Buenos Aires",slug:"estadio-presidente-peron-buenos-aires",lat:-34.6677654,lng:-58.3685192,event:"",year:0,places:3202},
+  {name:"La Bombonera, Buenos Aires",slug:"la-bombonera-buenos-aires",lat:-34.6356109,lng:-58.36475629999999,event:"",year:0,places:4296},
+  {name:"ANZ Stadium",slug:"anz-stadium",lat:-33.8471156,lng:151.0634135,event:"",year:0,places:1202},
+  {name:"Camberra Stadium",slug:"camberra-stadium",lat:-35.2499912,lng:149.1027036,event:"",year:0,places:254},
+  {name:"Hindmarsh Stadium",slug:"hindmarsh-stadium",lat:-34.9073204,lng:138.5688783,event:"",year:0,places:1389},
+  {name:"Melbourne Cricket Ground",slug:"melbourne-cricket-ground",lat:-37.8199669,lng:144.9834493,event:"",year:0,places:4960},
+  {name:"Suncorp Stadium",slug:"suncorp-stadium",lat:-27.464845,lng:153.0095312,event:"",year:0,places:4288},
+  {name:"Sydney Football Stadium",slug:"sydney-football-stadium",lat:-33.889067,lng:151.225364,event:"",year:0,places:4728},
+  {name:"The Gabba Stadium, Brisbane",slug:"the-gabba-stadium-brisbane",lat:-27.4858376,lng:153.0380853,event:"",year:0,places:2653},
+  {name:"Ernst-Happel-Stadion",slug:"ernst-happel-stadion",lat:48.2072078,lng:16.4209847,event:"",year:0,places:1146},
+  {name:"Red Bull Arena, Salzburg",slug:"red-bull-arena-salzburg",lat:47.8162823,lng:12.9982153,event:"",year:0,places:909},
+  {name:"Tivoli-Neu",slug:"tivoli-neu",lat:47.255976,lng:11.410484,event:"",year:0,places:2492},
+  {name:"Wörthersee Stadion",slug:"worthersee-stadion",lat:46.6089713,lng:14.2782751,event:"",year:0,places:785},
+  {name:"Baku Olympic Stadium",slug:"baku-olympic-stadium",lat:40.429958,lng:49.919602,event:"",year:0,places:345},
+  {name:"Jan Breydel Stadium_1500",slug:"jan-breydel-stadium-1500",lat:51.1933333,lng:3.1805556,event:"",year:0,places:1672},
+  {name:"King Baudouin Stadium",slug:"king-baudouin-stadium",lat:50.8956998,lng:4.3340722,event:"",year:0,places:2009},
+  {name:"Stade Maurice Dufrasne",slug:"stade-maurice-dufrasne",lat:50.6099205,lng:5.5435099,event:"",year:0,places:555},
+  {name:"Stade du Pays de Charleroi",slug:"stade-du-pays-de-charleroi",lat:50.414024,lng:4.454206999999999,event:"",year:0,places:2941},
+  {name:"Allianz Parque",slug:"allianz-parque",lat:-23.5276207,lng:-46.6784662,event:"",year:0,places:7775},
+  {name:"Amazônia Arena",slug:"amazonia-arena",lat:-3.0832457,lng:-60.0281392,event:"",year:0,places:6629},
+  {name:"Arena MRV",slug:"arena-mrv",lat:-19.930066,lng:-44.01455,event:"",year:0,places:1917},
+  {name:"Arena do Gremio",slug:"arena-do-gremio",lat:-29.9739628,lng:-51.1948838,event:"",year:0,places:1200},
+  {name:"Beira Rio Stadium",slug:"beira-rio-stadium",lat:-30.0654826,lng:-51.2358459,event:"",year:0,places:2111},
+  {name:"Castelão Arena",slug:"castelao-arena",lat:-3.8072834,lng:-38.5224331,event:"",year:0,places:2720},
+  {name:"Corinthians Arena",slug:"corinthians-arena",lat:-23.5453221,lng:-46.4742676,event:"",year:0,places:4238},
+  {name:"Dunas Arena",slug:"dunas-arena",lat:-5.8268375,lng:-35.2124213,event:"",year:0,places:6596},
+  {name:"Estadio Antonio Accioly",slug:"estadio-antonio-accioly",lat:-16.6709503,lng:-49.2846297,event:"",year:0,places:4843},
+  {name:"Estadio Olimpico Pedro Ludovico",slug:"estadio-olimpico-pedro-ludovico",lat:-16.6707516,lng:-49.2624329,event:"",year:0,places:7778},
+  {name:"Estadio Serra Dourada",slug:"estadio-serra-dourada",lat:-16.6990618,lng:-49.2341521,event:"",year:0,places:5427},
+  {name:"Estádio da Serrinha",slug:"estadio-da-serrinha",lat:-16.7104284,lng:-49.2612882,event:"",year:0,places:7520},
+  {name:"Itaipava Arena Fonte Nova",slug:"itaipava-arena-fonte-nova",lat:-12.97883,lng:-38.5043711,event:"",year:0,places:8649},
+  {name:"Joaquim Américo Stadium",slug:"joaquim-americo-stadium",lat:-25.4482116,lng:-49.2769866,event:"",year:0,places:7825},
+  {name:"Mané Garrincha Stadium",slug:"mane-garrincha-stadium",lat:-15.7835191,lng:-47.899211,event:"",year:0,places:5575},
+  {name:"Maracanã Stadium",slug:"maracana-stadium",lat:-22.9121089,lng:-43.2301558,event:"",year:0,places:7503},
+  {name:"Mineirão Stadium",slug:"mineirao-stadium",lat:-19.865867,lng:-43.97113150000001,event:"",year:0,places:3937},
+  {name:"Nilton Santos Olympic Stadium",slug:"nilton-santos-olympic-stadium",lat:-22.8932749,lng:-43.2923128,event:"",year:0,places:6736},
+  {name:"Pantanal Arena",slug:"pantanal-arena",lat:-15.6040194,lng:-56.1216245,event:"",year:0,places:2849},
+  {name:"Pernambuco Arena",slug:"pernambuco-arena",lat:-8.0406625,lng:-35.0081868,event:"",year:0,places:283},
+  {name:"Beijing National Stadium",slug:"beijing-national-stadium",lat:39.9929431,lng:116.3965112,event:"",year:0,places:2108},
+  {name:"Parken Stadium",slug:"parken-stadium",lat:55.7027011,lng:12.5724331,event:"",year:0,places:4835},
+  {name:"Anfield Road Stadium",slug:"anfield-road-stadium",lat:53.4308294,lng:-2.96083,event:"",year:0,places:1346},
+  {name:"City Ground Stadium",slug:"city-ground-stadium",lat:52.940149,lng:-1.1336799,event:"",year:0,places:2287},
+  {name:"Elland Road Stadium",slug:"elland-road-stadium",lat:53.7778162,lng:-1.5721446,event:"",year:0,places:1130},
+  {name:"Hillsborough Stadium",slug:"hillsborough-stadium",lat:53.4113938,lng:-1.5009452,event:"",year:0,places:1508},
+  {name:"London Olympic Stadium",slug:"london-olympic-stadium",lat:51.5387095,lng:-0.0166037,event:"",year:0,places:3331},
+  {name:"Old Trafford Stadium",slug:"old-trafford-stadium",lat:53.4630589,lng:-2.2913401,event:"",year:0,places:1938},
+  {name:"St. James' Park Stadium",slug:"st-james-park-stadium",lat:54.975556,lng:-1.621667,event:"",year:0,places:3743},
+  {name:"Villa Park, Birmingham, UK",slug:"villa-park-birmingham-uk",lat:52.5091117,lng:-1.8847828,event:"",year:0,places:1288},
+  {name:"Wembley Stadium",slug:"wembley-stadium",lat:51.5560208,lng:-0.2795188,event:"",year:0,places:2236},
+  {name:"stadium of light, UK",slug:"stadium-of-light-uk",lat:54.914561,lng:-1.388371,event:"",year:0,places:2492},
+  {name:"white heart lane stadium",slug:"white-heart-lane-stadium",lat:51.6032123,lng:-0.0657389,event:"",year:0,places:1929},
+  {name:"Allianz Riviera",slug:"allianz-riviera",lat:43.705059,lng:7.192585,event:"",year:0,places:635},
+  {name:"Matmut Stadium",slug:"matmut-stadium",lat:45.723699,lng:4.8321401,event:"",year:0,places:1191},
+  {name:"Nouveau Stade de Bordeaux",slug:"nouveau-stade-de-bordeaux",lat:44.897381,lng:-0.561553,event:"",year:0,places:373},
+  {name:"Parc Olympique Lyonnais",slug:"parc-olympique-lyonnais",lat:45.7652949,lng:4.982029199999999,event:"",year:0,places:514},
+  {name:"Parc des Princes, Paris",slug:"parc-des-princes-paris",lat:48.8414356,lng:2.2530487,event:"",year:0,places:8013},
+  {name:"Stade Bollaert-Delelis",slug:"stade-bollaert-delelis",lat:50.4328789,lng:2.8150836,event:"",year:0,places:471},
+  {name:"Stade Chaban-Delmas",slug:"stade-chaban-delmas",lat:44.8292357,lng:-0.5983086,event:"",year:0,places:2326},
+  {name:"Stade Geoffroy-Guichard",slug:"stade-geoffroy-guichard",lat:45.4607541,lng:4.3901056,event:"",year:0,places:1344},
+  {name:"Stade Pierre-Mauroy",slug:"stade-pierre-mauroy",lat:50.6119667,lng:3.1304899,event:"",year:0,places:685},
+  {name:"Stade Vélodrome",slug:"stade-velodrome",lat:43.269827,lng:5.395887300000001,event:"",year:0,places:3072},
+  {name:"Stade de France",slug:"stade-de-france",lat:48.9244592,lng:2.3601645,event:"",year:0,places:2444},
+  {name:"Stade de la Beaujoire",slug:"stade-de-la-beaujoire",lat:47.2560232,lng:-1.5246749,event:"",year:0,places:926},
+  {name:"Stade de la Mosson",slug:"stade-de-la-mosson",lat:43.6221434,lng:3.8120627,event:"",year:0,places:950},
+  {name:"Stadium Municipal",slug:"stadium-municipal",lat:43.5832972,lng:1.434048,event:"",year:0,places:1881},
+  {name:"AOL Arena (Volksparck Stadium)",slug:"aol-arena-volksparck-stadium",lat:53.5871279,lng:9.8986004,event:"",year:0,places:885},
+  {name:"AWD-Arena",slug:"awd-arena",lat:52.360017,lng:9.731224899999999,event:"",year:0,places:3329},
+  {name:"Allianz Arena, Munich",slug:"allianz-arena-munich",lat:48.2187997,lng:11.6247072,event:"",year:0,places:223},
+  {name:"Commerzbank Arena",slug:"commerzbank-arena",lat:50.0685807,lng:8.645472,event:"",year:0,places:427},
+  {name:"Fritz Walter Stadium",slug:"fritz-walter-stadium",lat:49.4341714,lng:7.7768069,event:"",year:0,places:2362},
+  {name:"Grundig Stadium",slug:"grundig-stadium",lat:49.4262526,lng:11.1257077,event:"",year:0,places:636},
+  {name:"Mercedes Benz Arena",slug:"mercedes-benz-arena",lat:48.7922577,lng:9.23208,event:"",year:0,places:1322},
+  {name:"Olympic Stadium, Berlin",slug:"olympic-stadium-berlin",lat:52.5146971,lng:13.2394987,event:"",year:0,places:790},
+  {name:"Red Bull Arena Leipzig",slug:"red-bull-arena-leipzig",lat:51.3457824,lng:12.3482689,event:"",year:0,places:1996},
+  {name:"RheinEnergie Stadiun",slug:"rheinenergie-stadiun",lat:50.93346090000001,lng:6.8751545,event:"",year:0,places:1167},
+  {name:"Signal Iduna Park",slug:"signal-iduna-park",lat:51.4925888,lng:7.451857400000001,event:"",year:0,places:1459},
+  {name:"Veltins-Arena",slug:"veltins-arena",lat:51.5546309,lng:7.0675262,event:"",year:0,places:674},
+  {name:"Athens Olympic Stadium, Athens, Greece",slug:"athens-olympic-stadium-athens-greece",lat:38.0361294,lng:23.7875913,event:"",year:0,places:3171},
+  {name:"Puskás Aréna",slug:"puskas-arena",lat:47.5031721,lng:19.0970218,event:"",year:0,places:4256},
+  {name:"Aviva stadium",slug:"aviva-stadium",lat:53.3352318,lng:-6.228456899999999,event:"",year:0,places:2956},
+  {name:"Stadio Olimpico,Rome",slug:"stadio-olimpico-rome",lat:41.93407699999999,lng:12.454725,event:"",year:0,places:2515},
+  {name:"Big Eye Stadium, Oita",slug:"big-eye-stadium-oita",lat:33.2007225,lng:131.6574831,event:"",year:0,places:521},
+  {name:"Big Swan Stadium",slug:"big-swan-stadium",lat:37.88257309999999,lng:139.059171,event:"",year:0,places:525},
+  {name:"International Stadium Yokohama",slug:"international-stadium-yokohama",lat:35.5099461,lng:139.6063937,event:"",year:0,places:2723},
+  {name:"Japan National Stadium",slug:"japan-national-stadium",lat:35.6778952,lng:139.7145468,event:"",year:0,places:5889},
+  {name:"Kashima Soccer Stadium",slug:"kashima-soccer-stadium",lat:35.991979,lng:140.6404297,event:"",year:0,places:215},
+  {name:"Kobe Wing Stadium",slug:"kobe-wing-stadium",lat:34.6568109,lng:135.1696229,event:"",year:0,places:1938},
+  {name:"Miyagi Stadium",slug:"miyagi-stadium",lat:38.3354303,lng:140.9505668,event:"",year:0,places:218},
+  {name:"Nagai Stadium",slug:"nagai-stadium",lat:34.6140895,lng:135.5185895,event:"",year:0,places:3367},
+  {name:"Saitama Stadium 2002",slug:"saitama-stadium-2002",lat:35.9031054,lng:139.7175976,event:"",year:0,places:554},
+  {name:"Sapporo Dome Stadium",slug:"sapporo-dome-stadium",lat:43.0150186,lng:141.4100053,event:"",year:0,places:1074},
+  {name:"Shizuoka Ecopa Stadium",slug:"shizuoka-ecopa-stadium",lat:34.7434547,lng:137.970771,event:"",year:0,places:272},
+  {name:"Feijenoord Stadion",slug:"feijenoord-stadion",lat:51.8939035,lng:4.5231354,event:"",year:0,places:1705},
+  {name:"GelreDome",slug:"gelredome",lat:51.9637628,lng:5.893703599999999,event:"",year:0,places:1300},
+  {name:"Johan Cruijff Arena",slug:"johan-cruijff-arena",lat:52.3143713,lng:4.9419641,event:"",year:0,places:2749},
+  {name:"Philips Stadion",slug:"philips-stadion",lat:51.4417341,lng:5.4674478,event:"",year:0,places:2472},
+  {name:"National Stadium",slug:"national-stadium",lat:52.2394957,lng:21.0457909,event:"",year:0,places:3898},
+  {name:"Stadion Energa Gdańsk",slug:"stadion-energa-gdansk",lat:54.3900786,lng:18.6392969,event:"",year:0,places:649},
+  {name:"Stadion Miejski, Poznań",slug:"stadion-miejski-poznan",lat:52.3976275,lng:16.8581044,event:"",year:0,places:1574},
+  {name:"Stadion Miejski, Wroclaw",slug:"stadion-miejski-wroclaw",lat:51.1412173,lng:16.9437936,event:"",year:0,places:504},
+  {name:"Estádio Algarve",slug:"estadio-algarve",lat:37.0882854,lng:-7.9747013,event:"",year:0,places:69},
+  {name:"Estádio Cidade de Coimbra",slug:"estadio-cidade-de-coimbra",lat:40.2032612,lng:-8.4075454,event:"",year:0,places:2881},
+  {name:"Estádio D. Afonso Henriques",slug:"estadio-d-afonso-henriques",lat:41.4459272,lng:-8.300916599999999,event:"",year:0,places:2182},
+  {name:"Estádio Dr. Magalhães Pessoa",slug:"estadio-dr-magalhaes-pessoa",lat:39.7496031,lng:-8.8118804,event:"",year:0,places:2260},
+  {name:"Estádio José Alvalade",slug:"estadio-jose-alvalade",lat:38.7612299,lng:-9.1617956,event:"",year:0,places:3344},
+  {name:"Estádio Municipal de Aveiro",slug:"estadio-municipal-de-aveiro",lat:40.6478091,lng:-8.5936953,event:"",year:0,places:267},
+  {name:"Estádio Municipal de Braga",slug:"estadio-municipal-de-braga",lat:41.5619546,lng:-8.430493799999999,event:"",year:0,places:2370},
+  {name:"Estádio da Luz",slug:"estadio-da-luz",lat:38.752711,lng:-9.184773999999999,event:"",year:0,places:3748},
+  {name:"Estádio do Bessa XXI",slug:"estadio-do-bessa-xxi",lat:41.1624892,lng:-8.6432611,event:"",year:0,places:3263},
+  {name:"Estádio do Dragão",slug:"estadio-do-dragao",lat:41.16177,lng:-8.583591,event:"",year:0,places:2245},
+  {name:"Al Bayt Stadium",slug:"al-bayt-stadium",lat:25.6522053,lng:51.4878475,event:"",year:0,places:52},
+  {name:"Al Rayyan Football Stadium",slug:"al-rayyan-football-stadium",lat:25.3296057,lng:51.3423451,event:"",year:0,places:487},
+  {name:"Al Thumama Stadium",slug:"al-thumama-stadium",lat:25.2352166,lng:51.5321881,event:"",year:0,places:452},
+  {name:"Al Wakrah Stadium",slug:"al-wakrah-stadium",lat:25.1802619,lng:51.59651849999999,event:"",year:0,places:425},
+  {name:"Education City Stadium",slug:"education-city-stadium",lat:25.3107787,lng:51.4244329,event:"",year:0,places:407},
+  {name:"Khalifa International Stadium",slug:"khalifa-international-stadium",lat:25.2635251,lng:51.4480606,event:"",year:0,places:1376},
+  {name:"Lusail Iconic Stadium",slug:"lusail-iconic-stadium",lat:25.4208739,lng:51.490386,event:"",year:0,places:94},
+  {name:"Ras Abu Aboud Stadium",slug:"ras-abu-aboud-stadium",lat:25.2888199,lng:51.5663287,event:"",year:0,places:250},
+  {name:" National Arena Bucharest",slug:"national-arena-bucharest",lat:44.4371391,lng:26.152579,event:"",year:0,places:2866},
+  {name:"Cosmos Arena",slug:"cosmos-arena",lat:53.2780093,lng:50.2374508,event:"",year:0,places:341},
+  {name:"Ekaterinburg Arena",slug:"ekaterinburg-arena",lat:56.832648,lng:60.5733602,event:"",year:0,places:7900},
+  {name:"Fisht Olympic Stadium",slug:"fisht-olympic-stadium",lat:43.40196,lng:39.9551871,event:"",year:0,places:1091},
+  {name:"Kaliningrad Stadium",slug:"kaliningrad-stadium",lat:54.6981736,lng:20.5335734,event:"",year:0,places:1634},
+  {name:"Kazan Arena",slug:"kazan-arena",lat:55.821002,lng:49.1608481,event:"",year:0,places:2538},
+  {name:"Krestovsky Stadium",slug:"krestovsky-stadium",lat:59.972728,lng:30.2214045,event:"",year:0,places:1419},
+  {name:"Luzhniki Stadium",slug:"luzhniki-stadium",lat:55.715762,lng:37.5537157,event:"",year:0,places:2621},
+  {name:"Mordovia Arena",slug:"mordovia-arena",lat:54.1817934,lng:45.2036952,event:"",year:0,places:2011},
+  {name:"Nizhny Novgorod Stadium",slug:"nizhny-novgorod-stadium",lat:56.3375157,lng:43.9633642,event:"",year:0,places:1538},
+  {name:"Otkritie Arena",slug:"otkritie-arena",lat:55.8178196,lng:37.4405993,event:"",year:0,places:2413},
+  {name:"Rostov Arena",slug:"rostov-arena",lat:47.20941879999999,lng:39.7377965,event:"",year:0,places:739},
+  {name:"Volgograd Arena",slug:"volgograd-arena",lat:48.7344107,lng:44.5485528,event:"",year:0,places:1120},
+  {name:"Hampden Park",slug:"hampden-park",lat:55.8258422,lng:-4.2520476,event:"",year:0,places:1476},
+  {name:"Cape Town Stadium",slug:"cape-town-stadium",lat:-33.904791,lng:18.4098451,event:"",year:0,places:2960},
+  {name:"Ellis Park Stadium",slug:"ellis-park-stadium",lat:-26.1975466,lng:28.0608802,event:"",year:0,places:2390},
+  {name:"FNB Stadium",slug:"fnb-stadium",lat:-26.2347569,lng:27.9826554,event:"",year:0,places:130},
+  {name:"Free State Stadium",slug:"free-state-stadium",lat:-29.1172578,lng:26.2087813,event:"",year:0,places:2219},
+  {name:"Loftus Versfeld Stadium",slug:"loftus-versfeld-stadium",lat:-25.7532569,lng:28.2229379,event:"",year:0,places:1900},
+  {name:"Mbombela Stadium",slug:"mbombela-stadium",lat:-25.461724,lng:30.9297173,event:"",year:0,places:52},
+  {name:"Moses Mabhida Stadium",slug:"moses-mabhida-stadium",lat:-29.8289571,lng:31.0303869,event:"",year:0,places:1713},
+  {name:"Nelson Mandela Bay Stadium",slug:"nelson-mandela-bay-stadium",lat:-33.9378928,lng:25.5992306,event:"",year:0,places:1035},
+  {name:"Peter Mokaba Stadium",slug:"peter-mokaba-stadium",lat:-23.9248279,lng:29.4687797,event:"",year:0,places:187},
+  {name:"Royal Bafokeng Stadium",slug:"royal-bafokeng-stadium",lat:-25.5786704,lng:27.1608635,event:"",year:0,places:115},
+  {name:"Busan Asiad Stadium",slug:"busan-asiad-stadium",lat:35.190081,lng:129.058198,event:"",year:0,places:1637},
+  {name:"Daegu World Cup Stadium",slug:"daegu-world-cup-stadium",lat:35.8295258,lng:128.6902985,event:"",year:0,places:427},
+  {name:"Daejeon World Cup Stadium",slug:"daejeon-world-cup-stadium",lat:36.3652954,lng:127.324859,event:"",year:0,places:1515},
+  {name:"Gwangju World Cup Stadium",slug:"gwangju-world-cup-stadium",lat:35.1336571,lng:126.8748604,event:"",year:0,places:1194},
+  {name:"Incheon Munhak Stadium",slug:"incheon-munhak-stadium",lat:37.4350619,lng:126.6907212,event:"",year:0,places:1954},
+  {name:"Jeju World Cup Stadium",slug:"jeju-world-cup-stadium",lat:33.2461852,lng:126.5093244,event:"",year:0,places:731},
+  {name:"Jeonju World Cup Stadium",slug:"jeonju-world-cup-stadium",lat:35.8681258,lng:127.0644156,event:"",year:0,places:348},
+  {name:"Seoul Olympic Stadium",slug:"seoul-olympic-stadium",lat:37.5158554,lng:127.0727661,event:"",year:0,places:6411},
+  {name:"Seoul World Cup Stadium",slug:"seoul-world-cup-stadium",lat:37.5682588,lng:126.8972774,event:"",year:0,places:3748},
+  {name:"Suwon World Cup Stadium",slug:"suwon-world-cup-stadium",lat:37.2865123,lng:127.0368801,event:"",year:0,places:2863},
+  {name:"Ulsan Munsu Football Stadium",slug:"ulsan-munsu-football-stadium",lat:35.5352422,lng:129.2595839,event:"",year:0,places:1074},
+  {name:"San Mames Stadium",slug:"san-mames-stadium",lat:43.26413549999999,lng:-2.9493652,event:"",year:0,places:7158},
+  {name:"Letzigrund",slug:"letzigrund",lat:47.3826664,lng:8.5038076,event:"",year:0,places:4111},
+  {name:"St. Jacobs Park, Basel",slug:"st-jacobs-park-basel",lat:47.54158940000001,lng:7.620075600000001,event:"",year:0,places:1660},
+  {name:"Stade de Genève",slug:"stade-de-geneve",lat:46.1778419,lng:6.127462299999999,event:"",year:0,places:2601},
+  {name:"Stade de Suisse",slug:"stade-de-suisse",lat:46.9631123,lng:7.4648745,event:"",year:0,places:1822},
+  {name:"Arena Lviv",slug:"arena-lviv",lat:49.7748612,lng:24.02768,event:"",year:0,places:570},
+  {name:"Donbass Arena",slug:"donbass-arena",lat:48.0211066,lng:37.8102215,event:"",year:0,places:2180},
+  {name:"Metalist Oblast Sports Complex",slug:"metalist-oblast-sports-complex",lat:49.9808776,lng:36.2615479,event:"",year:0,places:3310},
+  {name:"Olympiyskiy, Kiev",slug:"olympiyskiy-kiev",lat:50.4334058,lng:30.521856,event:"",year:0,places:5484},
+  {name:"40.5827983,-111.8959807",slug:"40-5827983-111-8959807",lat:40.5827983,lng:-111.8959807,event:"",year:0,places:3048},
+  {name:"Audi Field",slug:"audi-field",lat:38.8689313,lng:-77.012926,event:"",year:0,places:3660},
+  {name:"BC Place Stadium, Vancouver",slug:"bc-place-stadium-vancouver",lat:49.27675,lng:-123.111999,event:"",year:0,places:12335},
+  {name:"BMO Stadium",slug:"bmo-stadium",lat:34.0127942,lng:-118.284075,event:"",year:0,places:5864},
+  {name:"camping world stadium",slug:"camping-world-stadium",lat:28.5390192,lng:-81.40275249999999,event:"",year:0,places:1758},
+  {name:"Children's Mercy Park",slug:"children-s-mercy-park",lat:39.1215929,lng:-94.82317669999999,event:"",year:0,places:1716},
+  {name:"Cotton Bowl",slug:"cotton-bowl",lat:32.7796114,lng:-96.7595741,event:"",year:0,places:1268},
+  {name:"Dignity Health Sports Park Stadium",slug:"dignity-health-sports-park-stadium",lat:33.8643777,lng:-118.2611426,event:"",year:0,places:1938},
+  {name:"Foxboro Stadium",slug:"foxboro-stadium",lat:42.0909458,lng:-71.2643465,event:"",year:0,places:530},
+  {name:"Giants Stadium",slug:"giants-stadium",lat:40.8135064,lng:-74.074457,event:"",year:0,places:716},
+  {name:"Lincoln Financial Field",slug:"lincoln-financial-field",lat:39.9013695,lng:-75.16752149999999,event:"",year:0,places:2008},
+  {name:"Lumen Field",slug:"lumen-field",lat:47.5951518,lng:-122.3316393,event:"",year:0,places:11962},
+  {name:"Mapfre Stadium",slug:"mapfre-stadium",lat:40.0095288,lng:-82.99116219999999,event:"",year:0,places:1522},
+  {name:"mercedez benz stadium",slug:"mercedez-benz-stadium",lat:33.7554483,lng:-84.40085499999999,event:"",year:0,places:4919},
+  {name:"Pontiac Silverdome",slug:"pontiac-silverdome",lat:42.6455042,lng:-83.2566135,event:"",year:0,places:393},
+  {name:"Rice-Eccles Stadium, Salt Lake",slug:"rice-eccles-stadium-salt-lake",lat:40.75975,lng:-111.8490319,event:"",year:0,places:2838},
+  {name:"RingCentral Coliseum",slug:"ringcentral-coliseum",lat:37.7515946,lng:-122.2005458,event:"",year:0,places:1214},
+  {name:"Robert F. Kennedy Memorial Stadium",slug:"robert-f-kennedy-memorial-stadium",lat:38.8898532,lng:-76.97186669999999,event:"",year:0,places:994},
+  {name:"Rose Bowl",slug:"rose-bowl",lat:34.1613284,lng:-118.1676462,event:"",year:0,places:533},
+  {name:"Saputo Stadium",slug:"saputo-stadium",lat:45.5630738,lng:-73.5526584,event:"",year:0,places:2514},
+  {name:"SeatGeek Stadium",slug:"seatgeek-stadium",lat:41.7647896,lng:-87.8053793,event:"",year:0,places:602},
+  {name:"Soldier Field",slug:"soldier-field",lat:41.8623132,lng:-87.6166884,event:"",year:0,places:3702},
+  {name:"Stanford Stadium",slug:"stanford-stadium",lat:37.4345298,lng:-122.1611227,event:"",year:0,places:3745},
+  {name:"StubHub Center",slug:"stubhub-center",lat:33.8643777,lng:-118.2611426,event:"",year:0,places:975},
+  {name:"Suntrust Park",slug:"suntrust-park",lat:33.8907177,lng:-84.4676625,event:"",year:0,places:2829},
+  {name:"Talen Energy Stadium",slug:"talen-energy-stadium",lat:39.832793,lng:-75.3784567,event:"",year:0,places:585},
+  {name:"Turner Field",slug:"turner-field",lat:33.7366194,lng:-84.3881459,event:"",year:0,places:1896},
+  {name:"Yankee Stadium",slug:"yankee-stadium",lat:40.8296426,lng:-73.9261745,event:"",year:0,places:9480},
+];
+// Slug → Country mapping (add new entries as you generate more stadiums)
+const SC = {
+  // Argentina
+  "estadio-monumental-de-nunez":"Argentina",
+  "estadio-presidente-peron-buenos-aires":"Argentina",
+  "la-bombonera-buenos-aires":"Argentina",
+
+  // Australia
+  "anz-stadium":"Australia",
+  "camberra-stadium":"Australia",
+  "hindmarsh-stadium":"Australia",
+  "melbourne-cricket-ground":"Australia",
+  "suncorp-stadium":"Australia",
+  "sydney-football-stadium":"Australia",
+  "the-gabba-stadium-brisbane":"Australia",
+
+  // Austria
+  "ernst-happel-stadion":"Austria",
+  "red-bull-arena-salzburg":"Austria",
+  "tivoli-neu":"Austria",
+  "worthersee-stadion":"Austria",
+
+  // Azerbaijan
+  "baku-olympic-stadium":"Azerbaijan",
+
+  // Belgium
+  "jan-breydel-stadium-1500":"Belgium",
+  "king-baudouin-stadium":"Belgium",
+  "stade-maurice-dufrasne":"Belgium",
+  "stade-du-pays-de-charleroi":"Belgium",
+
+  // Brazil
+  "allianz-parque":"Brazil",
+  "amazonia-arena":"Brazil",
+  "arena-mrv":"Brazil",
+  "arena-do-gremio":"Brazil",
+  "beira-rio-stadium":"Brazil",
+  "castelao-arena":"Brazil",
+  "corinthians-arena":"Brazil",
+  "dunas-arena":"Brazil",
+  "estadio-antonio-accioly":"Brazil",
+  "estadio-olimpico-pedro-ludovico":"Brazil",
+  "estadio-serra-dourada":"Brazil",
+  "estadio-da-serrinha":"Brazil",
+  "itaipava-arena-fonte-nova":"Brazil",
+  "joaquim-americo-stadium":"Brazil",
+  "mane-garrincha-stadium":"Brazil",
+  "maracana-stadium":"Brazil",
+  "mineirao-stadium":"Brazil",
+  "nilton-santos-olympic-stadium":"Brazil",
+  "pantanal-arena":"Brazil",
+  "pernambuco-arena":"Brazil",
+
+  // China
+  "beijing-national-stadium":"China",
+
+  // Denmark
+  "parken-stadium":"Denmark",
+
+  // United Kingdom
+  "anfield-road-stadium":"United Kingdom",
+  "city-ground-stadium":"United Kingdom",
+  "elland-road-stadium":"United Kingdom",
+  "hillsborough-stadium":"United Kingdom",
+  "london-olympic-stadium":"United Kingdom",
+  "old-trafford-stadium":"United Kingdom",
+  "st-james-park-stadium":"United Kingdom",
+  "villa-park-birmingham-uk":"United Kingdom",
+  "wembley-stadium":"United Kingdom",
+  "stadium-of-light-uk":"United Kingdom",
+  "white-heart-lane-stadium":"United Kingdom",
+  "hampden-park":"United Kingdom",
+
+  // France
+  "allianz-riviera":"France",
+  "matmut-stadium":"France",
+  "nouveau-stade-de-bordeaux":"France",
+  "parc-olympique-lyonnais":"France",
+  "parc-des-princes-paris":"France",
+  "stade-bollaert-delelis":"France",
+  "stade-chaban-delmas":"France",
+  "stade-geoffroy-guichard":"France",
+  "stade-pierre-mauroy":"France",
+  "stade-velodrome":"France",
+  "stade-de-france":"France",
+  "stade-de-la-beaujoire":"France",
+  "stade-de-la-mosson":"France",
+  "stadium-municipal":"France",
+
+  // Germany
+  "aol-arena-volksparck-stadium":"Germany",
+  "awd-arena":"Germany",
+  "allianz-arena-munich":"Germany",
+  "commerzbank-arena":"Germany",
+  "fritz-walter-stadium":"Germany",
+  "grundig-stadium":"Germany",
+  "mercedes-benz-arena":"Germany",
+  "olympic-stadium-berlin":"Germany",
+  "red-bull-arena-leipzig":"Germany",
+  "rheinenergie-stadiun":"Germany",
+  "signal-iduna-park":"Germany",
+  "veltins-arena":"Germany",
+
+  // Greece
+  "athens-olympic-stadium-athens-greece":"Greece",
+
+  // Hungary
+  "puskas-arena":"Hungary",
+
+  // Ireland
+  "aviva-stadium":"Ireland",
+
+  // Italy
+  "stadio-olimpico-rome":"Italy",
+
+  // Japan
+  "big-eye-stadium-oita":"Japan",
+  "big-swan-stadium":"Japan",
+  "international-stadium-yokohama":"Japan",
+  "japan-national-stadium":"Japan",
+  "kashima-soccer-stadium":"Japan",
+  "kobe-wing-stadium":"Japan",
+  "miyagi-stadium":"Japan",
+  "nagai-stadium":"Japan",
+  "saitama-stadium-2002":"Japan",
+  "sapporo-dome-stadium":"Japan",
+  "shizuoka-ecopa-stadium":"Japan",
+
+  // Netherlands
+  "feijenoord-stadion":"Netherlands",
+  "gelredome":"Netherlands",
+  "johan-cruijff-arena":"Netherlands",
+  "philips-stadion":"Netherlands",
+
+  // Poland
+  "national-stadium":"Poland",
+  "stadion-energa-gdansk":"Poland",
+  "stadion-miejski-poznan":"Poland",
+  "stadion-miejski-wroclaw":"Poland",
+
+  // Portugal
+  "estadio-algarve":"Portugal",
+  "estadio-cidade-de-coimbra":"Portugal",
+  "estadio-d-afonso-henriques":"Portugal",
+  "estadio-dr-magalhaes-pessoa":"Portugal",
+  "estadio-jose-alvalade":"Portugal",
+  "estadio-municipal-de-aveiro":"Portugal",
+  "estadio-municipal-de-braga":"Portugal",
+  "estadio-da-luz":"Portugal",
+  "estadio-do-bessa-xxi":"Portugal",
+  "estadio-do-dragao":"Portugal",
+
+  // Qatar
+  "al-bayt-stadium":"Qatar",
+  "al-rayyan-football-stadium":"Qatar",
+  "al-thumama-stadium":"Qatar",
+  "al-wakrah-stadium":"Qatar",
+  "education-city-stadium":"Qatar",
+  "khalifa-international-stadium":"Qatar",
+  "lusail-iconic-stadium":"Qatar",
+  "ras-abu-aboud-stadium":"Qatar",
+
+  // Romania
+  "national-arena-bucharest":"Romania",
+
+  // Russia
+  "cosmos-arena":"Russia",
+  "ekaterinburg-arena":"Russia",
+  "fisht-olympic-stadium":"Russia",
+  "kaliningrad-stadium":"Russia",
+  "kazan-arena":"Russia",
+  "krestovsky-stadium":"Russia",
+  "luzhniki-stadium":"Russia",
+  "mordovia-arena":"Russia",
+  "nizhny-novgorod-stadium":"Russia",
+  "otkritie-arena":"Russia",
+  "rostov-arena":"Russia",
+  "volgograd-arena":"Russia",
+
+  // South Africa
+  "cape-town-stadium":"South Africa",
+  "ellis-park-stadium":"South Africa",
+  "fnb-stadium":"South Africa",
+  "free-state-stadium":"South Africa",
+  "loftus-versfeld-stadium":"South Africa",
+  "mbombela-stadium":"South Africa",
+  "moses-mabhida-stadium":"South Africa",
+  "nelson-mandela-bay-stadium":"South Africa",
+  "peter-mokaba-stadium":"South Africa",
+  "royal-bafokeng-stadium":"South Africa",
+
+  // South Korea
+  "busan-asiad-stadium":"South Korea",
+  "daegu-world-cup-stadium":"South Korea",
+  "daejeon-world-cup-stadium":"South Korea",
+  "gwangju-world-cup-stadium":"South Korea",
+  "incheon-munhak-stadium":"South Korea",
+  "jeju-world-cup-stadium":"South Korea",
+  "jeonju-world-cup-stadium":"South Korea",
+  "seoul-olympic-stadium":"South Korea",
+  "seoul-world-cup-stadium":"South Korea",
+  "suwon-world-cup-stadium":"South Korea",
+  "ulsan-munsu-football-stadium":"South Korea",
+
+  // Spain
+  "san-mames-stadium":"Spain",
+
+  // Switzerland
+  "letzigrund":"Switzerland",
+  "st-jacobs-park-basel":"Switzerland",
+  "stade-de-geneve":"Switzerland",
+  "stade-de-suisse":"Switzerland",
+
+  // Ukraine
+  "arena-lviv":"Ukraine",
+  "donbass-arena":"Ukraine",
+  "metalist-oblast-sports-complex":"Ukraine",
+  "olympiyskiy-kiev":"Ukraine",
+
+  // United States
+  "40-5827983-111-8959807":"United States",
+  "audi-field":"United States",
+  "bmo-stadium":"United States",
+  "camping-world-stadium":"United States",
+  "children-s-mercy-park":"United States",
+  "cotton-bowl":"United States",
+  "dignity-health-sports-park-stadium":"United States",
+  "foxboro-stadium":"United States",
+  "giants-stadium":"United States",
+  "lincoln-financial-field":"United States",
+  "lumen-field":"United States",
+  "mapfre-stadium":"United States",
+  "mercedez-benz-stadium":"United States",
+  "pontiac-silverdome":"United States",
+  "rice-eccles-stadium-salt-lake":"United States",
+  "ringcentral-coliseum":"United States",
+  "robert-f-kennedy-memorial-stadium":"United States",
+  "rose-bowl":"United States",
+  "seatgeek-stadium":"United States",
+  "soldier-field":"United States",
+  "stanford-stadium":"United States",
+  "stubhub-center":"United States",
+  "suntrust-park":"United States",
+  "talen-energy-stadium":"United States",
+  "turner-field":"United States",
+  "yankee-stadium":"United States",
+
+  // Canada
+  "bc-place-stadium-vancouver":"Canada",
+  "saputo-stadium":"Canada"
+};
+
+
+
+const {useState,useEffect,useRef,useCallback}=React;
+
+const D={};
+async function loadStadium(slug){
+  if(D[slug])return D[slug];
+  const r=await fetch('data/'+slug+'.json');
+  D[slug]=await r.json();
+  return D[slug];
+}
+
+// Stadium data loaded dynamically from data/index.json
+// See build_manifest.py to regenerate after adding new stadiums
+
+// Percentile helpers — use manifest array (IX) loaded from data/index.json
+function pctRank(slug,key,manifest,lowerIsBetter=false){
+  if(!manifest||!manifest.length)return null;
+  const vals=manifest.map(s=>s[key]).filter(v=>v>0);
+  if(!vals.length)return null;
+  const mine=manifest.find(s=>s.slug===slug)?.[key];
+  if(!mine)return null;
+  vals.sort((a,b)=>a-b);
+  const rank=vals.filter(v=>lowerIsBetter?v>mine:v<mine).length;
+  return Math.round((rank/vals.length)*100);
+}
+function pctLabel(pct){
+  if(pct===null)return null;
+  if(pct<=10)return"top 10%";
+  if(pct<=25)return"top 25%";
+  if(pct<=50)return"top 50%";
+  if(pct<=75)return"bottom 25%";
+  return"bottom 10%";
+}
+function genHeadline(slug,name,manifest){
+  if(!manifest)return null;
+  const s=manifest.find(m=>m.slug===slug);
+  if(!s)return null;
+  const divPct=pctRank(slug,'diversity',manifest);
+  const plPct=pctRank(slug,'places',manifest);
+  const distPct=pctRank(slug,'medianDist',manifest,true);
+  if(divPct!==null&&divPct<=25&&plPct!==null&&plPct<=25)
+    return`${name} stands out for both urban density and diversity of activity — among the most vibrant stadiums in this study.`;
+  if(divPct!==null&&divPct<=15)
+    return`${name} shows exceptional diversity of urban activity, ranking in the ${pctLabel(divPct)} of all studied stadiums.`;
+  if(plPct!==null&&plPct<=15)
+    return`${name} is surrounded by one of the densest urban environments in this study, with ${s.places.toLocaleString()} places within 3km.`;
+  if(distPct!==null&&distPct<=25)
+    return`Urban activity around ${name} is concentrated close to the stadium, suggesting a walkable, compact neighbourhood.`;
+  if(divPct!==null&&divPct>=75)
+    return`${name} sits in a relatively low-diversity urban environment, with activity dominated by a few place types.`;
+  if(plPct!==null&&plPct>=75)
+    return`${name} has limited urban activity nearby — one of the more isolated facilities in this study.`;
+  return`${name} shows a moderate urban profile, with ${s.places.toLocaleString()} places and a diversity index of ${s.diversity}.`;
+}
+
+// Build country index: groups stadiums by country, computes centroid
+function buildCountryIndex(stadiums,sc){
+  const countries={};
+  stadiums.forEach(s=>{
+    const country=s.country||sc[s.slug]||"Unknown";
+    if(!countries[country])countries[country]={name:country,stadiums:[],lat:0,lng:0};
+    countries[country].stadiums.push(s);
+  });
+  Object.values(countries).forEach(c=>{
+    c.lat=c.stadiums.reduce((a,s)=>a+s.lat,0)/c.stadiums.length;
+    c.lng=c.stadiums.reduce((a,s)=>a+s.lng,0)/c.stadiums.length;
+  });
+  return countries;
+}
+
+const CC={auto:[166,206,227],education:[31,120,180],financial:[178,223,138],food:[51,160,44],health:[251,154,153],industrial:[125,125,125],institution:[227,26,28],leisure:[253,191,111],lodging:[255,127,0],outdoor:[176,40,177],religion:[202,178,214],residential:[251,251,1],retail:[106,61,154],service:[255,255,153],transportation:[177,89,40],uncategorized:[125,125,125]};
+const EC={"FIFA World Cup":[220,50,50],"Summer Olympic Games":[240,200,40],"UEFA Euro Cup":[40,180,80]};
+
+const BG="#2c353c";
+
+function makeYlOrRd(npts){
+  const scale=Math.min(1.0, Math.max(0.2, (npts-30)/1500));
+  return function(t){
+    if(t<0.12)return[0,0,0,0];
+    const intensity=(t-0.12)/0.88;
+    const stops=[
+      [0.0,255,255,230],[0.12,255,247,188],[0.25,254,227,145],
+      [0.38,254,196,79],[0.50,253,159,51],[0.62,246,120,32],
+      [0.75,228,65,21],[0.87,200,20,15],[1.0,140,0,20],
+    ];
+    let r=140,g=0,b=20;
+    for(let i=0;i<stops.length-1;i++){
+      if(intensity>=stops[i][0]&&intensity<=stops[i+1][0]){
+        const f=(intensity-stops[i][0])/(stops[i+1][0]-stops[i][0]);
+        r=Math.round(stops[i][1]+(stops[i+1][1]-stops[i][1])*f);
+        g=Math.round(stops[i][2]+(stops[i+1][2]-stops[i][2])*f);
+        b=Math.round(stops[i][3]+(stops[i+1][3]-stops[i][3])*f);
+        break;
+      }
+    }
+    const alpha=Math.round(intensity*scale*210);
+    return[r,g,b,alpha];
+  };
+}
+function GMap({stadiums,sel,selCountry,onCountrySelect,onSelect,mapRef,countries}){
+const cRef=useRef(null);const[loaded,setLoaded]=useState(false);
+useEffect(()=>{
+  if(!cRef.current)return;
+  const map=new maplibregl.Map({container:cRef.current,style:"https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",center:[20,15],zoom:1.5,minZoom:1,maxZoom:18,attributionControl:false});
+  mapRef.current=map;
+  map.on("load",()=>{
+    const COLORS=["#4a9eff","#dc3232","#28b428","#f0c828","#b450dc","#ff8c32","#32dcc8","#ff6496","#64c864","#c89632","#5096ff","#ff5050"];
+    function cidx(n){let h=0;for(let i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))&0xfffffff;return Math.abs(h)%COLORS.length;}
+    const cl=Object.values(countries);
+    const cf=cl.map(c=>({type:"Feature",geometry:{type:"Point",coordinates:[c.lng,c.lat]},properties:{name:c.name,count:c.stadiums.length}}));
+    const cm=cl.flatMap(c=>[c.name,COLORS[cidx(c.name)]]);
+    const cc=cm.length>=2?["match",["get","name"],...cm,"#a0a0b4"]:"#4a9eff";
+    map.addSource("countries",{type:"geojson",data:{type:"FeatureCollection",features:cf}});
+    map.addLayer({id:"countries-glow",type:"circle",source:"countries",paint:{"circle-radius":["interpolate",["linear"],["get","count"],1,18,5,26,20,34],"circle-blur":0.6,"circle-color":"rgba(255,255,255,0.06)"}});
+    map.addLayer({id:"countries-dot",type:"circle",source:"countries",paint:{"circle-radius":["interpolate",["linear"],["get","count"],1,8,5,12,20,18],"circle-color":cc,"circle-stroke-width":1.5,"circle-stroke-color":"rgba(255,255,255,0.4)"}});
+    map.addLayer({id:"countries-label",type:"symbol",source:"countries",layout:{"text-field":["get","count"],"text-size":10,"text-anchor":"center"},paint:{"text-color":"#fff","text-halo-color":"rgba(0,0,0,0.5)","text-halo-width":1}});
+    const sf=stadiums.map(s=>({type:"Feature",geometry:{type:"Point",coordinates:[s.lng,s.lat]},properties:{slug:s.slug,name:s.name,country:(SC[s.slug]||"Unknown"),places:s.places,color:COLORS[cidx(SC[s.slug]||"")]}}));
+    const allSF=sf;
+    map.addSource("stadiums",{type:"geojson",data:{type:"FeatureCollection",features:allSF},cluster:true,clusterMaxZoom:14,clusterRadius:50});
+    map.addLayer({id:"stadiums-cluster",type:"circle",source:"stadiums",filter:["has","point_count"],layout:{"visibility":"none"},paint:{"circle-radius":["step",["get","point_count"],18,3,24,8,30],"circle-color":"rgba(74,158,255,0.2)","circle-stroke-width":1.5,"circle-stroke-color":"rgba(74,158,255,0.8)"}});
+    map.addLayer({id:"stadiums-cluster-count",type:"symbol",source:"stadiums",filter:["has","point_count"],layout:{"visibility":"none","text-field":["get","point_count_abbreviated"],"text-size":11,"text-anchor":"center"},paint:{"text-color":"#fff","text-halo-color":"rgba(0,0,0,0.5)","text-halo-width":1}});
+    map.addLayer({id:"stadiums-glow",type:"circle",source:"stadiums",filter:["!",["has","point_count"]],layout:{"visibility":"none"},paint:{"circle-radius":14,"circle-blur":0.8,"circle-color":"rgba(180,180,180,0.15)"}});
+    map.addLayer({id:"stadiums-dot",type:"circle",source:"stadiums",filter:["!",["has","point_count"]],layout:{"visibility":"none"},paint:{"circle-radius":6,"circle-color":["coalesce",["get","color"],"#b4b4b4"],"circle-stroke-width":1.5,"circle-stroke-color":"rgba(255,255,255,0.3)"}});
+    const popup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:12});
+    map.on("click","countries-dot",(e)=>{const p=e.features[0].properties;const c=countries[p.name];if(c)onCountrySelect(c);});
+    map.on("mouseenter","countries-dot",(e)=>{map.getCanvas().style.cursor="pointer";const p=e.features[0].properties;popup.setLngLat(e.features[0].geometry.coordinates).setHTML('<div style="font-family:system-ui;font-size:11px"><strong>'+p.name+'</strong><br><span style="color:#999">'+p.count+' stadium'+(p.count>1?'s':'')+' mapped</span></div>').addTo(map);});
+    map.on("mouseleave","countries-dot",()=>{map.getCanvas().style.cursor="";popup.remove();});
+    map.on("click","stadiums-cluster",(e)=>{const f=e.features[0];map.getSource("stadiums").getClusterExpansionZoom(f.properties.cluster_id).then(z=>map.easeTo({center:f.geometry.coordinates,zoom:z+0.5,duration:600})).catch(()=>map.easeTo({center:f.geometry.coordinates,zoom:map.getZoom()+2,duration:600}));});
+    map.on("mouseenter","stadiums-cluster",()=>{map.getCanvas().style.cursor="pointer";});
+    map.on("mouseleave","stadiums-cluster",()=>{map.getCanvas().style.cursor="";});
+    map.on("click","stadiums-dot",(e)=>{const p=e.features[0].properties;const s=stadiums.find(st=>st.slug===p.slug);if(s)onSelect(s);});
+    map.on("mouseenter","stadiums-dot",(e)=>{map.getCanvas().style.cursor="pointer";const p=e.features[0].properties;popup.setLngLat(e.features[0].geometry.coordinates).setHTML('<div style="font-family:system-ui;font-size:11px"><strong>'+p.name+'</strong><br><span style="color:#999">'+p.places+' places</span></div>').addTo(map);});
+    map.on("mouseleave","stadiums-dot",()=>{map.getCanvas().style.cursor="";popup.remove();});
+    setLoaded(true);
+  });
+  return()=>map.remove();
+},[]);
+useEffect(()=>{
+  const map=mapRef.current;if(!map||!loaded)return;
+  if(!map.getLayer("countries-dot")||!map.getLayer("stadiums-dot")||!map.getSource("stadiums"))return;
+  const inCountry=!!selCountry;
+  const inStadium=!!sel;
+  map.setLayoutProperty("countries-dot","visibility",inCountry?"none":"visible");
+  map.setLayoutProperty("countries-glow","visibility",inCountry?"none":"visible");
+  map.setLayoutProperty("countries-label","visibility",inCountry?"none":"visible");
+  map.setLayoutProperty("stadiums-dot","visibility",(inCountry&&!inStadium)?"visible":"none");
+  map.setLayoutProperty("stadiums-glow","visibility",(inCountry&&!inStadium)?"visible":"none");
+  map.setLayoutProperty("stadiums-cluster","visibility",(inCountry&&!inStadium)?"visible":"none");
+  map.setLayoutProperty("stadiums-cluster-count","visibility",(inCountry&&!inStadium)?"visible":"none");
+
+  const COLORS=["#4a9eff","#dc3232","#28b428","#f0c828","#b450dc","#ff8c32","#32dcc8","#ff6496","#64c864","#c89632","#5096ff","#ff5050"];
+  const cidx=(n)=>{let h=0;for(let i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))&0xfffffff;return Math.abs(h)%COLORS.length;};
+  const mkf=(s)=>({type:"Feature",geometry:{type:"Point",coordinates:[s.lng,s.lat]},properties:{slug:s.slug,name:s.name,country:(SC[s.slug]||"Unknown"),places:s.places,color:COLORS[cidx(SC[s.slug]||"")]}});
+
+  const allFeatures=stadiums.map(mkf);
+  const features=inCountry ? ((countries[selCountry]?.stadiums||[]).map(mkf)) : allFeatures;
+  map.getSource("stadiums").setData({type:"FeatureCollection",features});
+
+  // Clear legacy filters; source-level filtering (Option B) now controls clustering/points.
+  map.setFilter("stadiums-dot",["!",["has","point_count"]]);
+  map.setFilter("stadiums-glow",["!",["has","point_count"]]);
+  map.setFilter("stadiums-cluster",["has","point_count"]);
+  map.setFilter("stadiums-cluster-count",["has","point_count"]);
+},[selCountry,sel,loaded,mapRef,countries,stadiums]);
+useEffect(()=>{
+  const map=mapRef.current;if(!map||!loaded)return;
+  if(!map.getLayer("stadiums-dot"))return;
+  // No final stadium marker highlight: keep uniform point styling (and points are hidden when a stadium is selected).
+  map.setPaintProperty("stadiums-dot","circle-stroke-width",1.5);
+  map.setPaintProperty("stadiums-dot","circle-stroke-color","rgba(255,255,255,0.3)");
+  map.setPaintProperty("stadiums-dot","circle-radius",6);
+},[sel,loaded,mapRef]);
+return <div ref={cRef} style={{width:"100%",height:"100%"}}/>;
+}
+
+function App(){
+const[sel,setSel]=useState(null);const[sd,setSd]=useState(null);
+const[lightbox,setLightbox]=useState(null);
+const[selCountry,setSelCountry]=useState(null);
+const COUNTRIES=React.useMemo(()=>buildCountryIndex(IX,SC),[]);
+const[escUsed,setEscUsed]=useState(()=>localStorage.getItem('escUsed')==='1');
+const[obStep,setObStep]=useState(()=>localStorage.getItem('onboardingSeen')==='1'?null:0);
+
+const[escToast,setEscToast]=useState(false);
+const dRef=useRef(null);const mapRef=useRef(null);const topRef=useRef(null);
+
+const obDone=useCallback(()=>{setObStep(null);localStorage.setItem('onboardingSeen','1');},[]);
+
+const handleCountrySelect=useCallback((country)=>{
+  setObStep(s=>s===0?1:s); // advance from step 0→1 when country clicked
+  setSelCountry(country.name);setSel(null);setSd(null);
+  if(mapRef.current){
+    const lats=country.stadiums.map(s=>s.lat);const lngs=country.stadiums.map(s=>s.lng);
+    const spread=Math.max(Math.max(...lats)-Math.min(...lats),Math.max(...lngs)-Math.min(...lngs));
+    const zoom=spread<0.1?12:spread<0.5?10:spread<1?9:spread<3?7:spread<8?6:spread<15?5:4;
+    mapRef.current.flyTo({center:[country.lng,country.lat],zoom,duration:2000});
+  }
+},[]);
+
+const handleSelect=useCallback((s)=>{
+  setObStep(s2=>s2===1?2:s2);
+  setSel(s);
+  if(mapRef.current)mapRef.current.flyTo({center:[s.lng,s.lat],zoom:15,duration:5000});
+  loadStadium(s.slug).then(d=>{ if(d) setSd(d); });
+  setTimeout(()=>{
+    const el=dRef.current;
+    if(el){const y=el.getBoundingClientRect().top+window.scrollY;window.scrollTo({top:y,behavior:'smooth'});}
+  },6500);
+  setTimeout(()=>setObStep(s=>s===2?null:s),12000);
+  setTimeout(()=>{if(localStorage.getItem('onboardingSeen')!=='1')localStorage.setItem('onboardingSeen','1');},12000);
+  setEscToast(false);
+  if(localStorage.getItem('escUsed')!=='1'){
+    const _t1=setTimeout(()=>setEscToast('in'),8500);
+    const _t2=setTimeout(()=>setEscToast('out'),12500);
+    const _t3=setTimeout(()=>setEscToast(false),13000);
+  }
+},[]);
+
+// ESC toast triggered from handleSelect
+
+const handleBack=useCallback(()=>{
+  if(!escUsed){setEscUsed(true);localStorage.setItem('escUsed','1');}
+  if(sel){setSel(null);setSd(null);
+    if(mapRef.current&&selCountry){const c=COUNTRIES[selCountry];
+      const lats=c.stadiums.map(s=>s.lat);const lngs=c.stadiums.map(s=>s.lng);
+      const spread=Math.max(Math.max(...lats)-Math.min(...lats),Math.max(...lngs)-Math.min(...lngs));
+      const zoom=spread<0.1?12:spread<0.5?10:spread<1?9:spread<3?7:spread<8?6:spread<15?5:4;
+      mapRef.current.flyTo({center:[c.lng,c.lat],zoom,duration:2000});}
+    return;}
+  if(selCountry){setSelCountry(null);
+    if(mapRef.current){topRef.current?.scrollIntoView({behavior:"smooth"});
+      setTimeout(()=>mapRef.current.flyTo({center:[20,15],zoom:1.5,duration:2000}),200);}
+    return;}
+},[sel,selCountry,COUNTRIES]);
+
+useEffect(()=>{const handler=(e)=>{if(e.key==="Escape"){
+  if(lightbox){setLightbox(null);return;}
+  handleBack();}};
+  window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);},[lightbox,handleBack]);
+
+return(
+<div style={{background:BG,color:"#ddd",fontFamily:"'Helvetica Neue',system-ui,sans-serif"}}>
+{lightbox&&<div className="lightbox-overlay" onClick={(e)=>{if(e.target===e.currentTarget)setLightbox(null);}}>
+<div className="lightbox-content">
+<div className="lightbox-title">{lightbox.title}</div>
+<button className="lightbox-close" onClick={()=>setLightbox(null)}>ESC to close</button>
+{lightbox.type==="scatter"&&<ScatterMap places={lightbox.places} meta={lightbox.meta}/>}
+{lightbox.type==="density"&&<DensityMap density={lightbox.density} meta={lightbox.meta}/>}
+</div></div>}
+
+<div ref={topRef} style={{height:"100vh",display:"flex",flexDirection:"column"}}>
+{false&&<div style={{position:"absolute",inset:0,zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",background:"#0f1011"}}>
+  <div style={{color:"#444",fontSize:12,letterSpacing:"2px",textTransform:"uppercase"}}>Loading stadiums…</div>
+</div>}
+<header style={{padding:"16px 24px 10px",display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexShrink:0}}>
+<div><h1 style={{margin:0,fontSize:24,fontWeight:700,color:"#fff",letterSpacing:"-0.5px"}}>Stadia Urban Observatory</h1>
+<p style={{margin:"2px 0 0",fontSize:11,color:"#555",letterSpacing:"0.8px",textTransform:"uppercase"}}>Urban analytics around major event stadiums</p></div>
+<div style={{display:"flex",gap:16,fontSize:10,color:"#777",paddingBottom:2}}>
+<div style={{fontSize:10,color:"#444",fontStyle:"italic"}}>Circles colored by country</div></div>
+</header>
+<div style={{flex:1,position:"relative"}}>
+<GMap stadiums={IX} sel={sel} selCountry={selCountry}
+  onCountrySelect={handleCountrySelect} onSelect={handleSelect} mapRef={mapRef} countries={COUNTRIES}/>
+
+</div>
+<div style={{padding:"6px 24px 10px",display:"flex",gap:5,flexWrap:"wrap",flexShrink:0}}>
+{!selCountry&&Object.values(COUNTRIES).map(c=>{
+  const evts=[...new Set(c.stadiums.map(s=>s.event))];
+  const col=EC[evts[0]]||[180,180,180];
+  return(<button key={c.name} onClick={()=>handleCountrySelect(c)} style={{background:"#131314",border:"1px solid #1e1e1f",borderRadius:4,padding:"5px 10px",color:"#777",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>
+    <span style={{color:`rgb(${col})`,marginRight:4}}>●</span>{c.name}<span style={{color:"#555",marginLeft:5,fontSize:9}}>{c.stadiums.length} stadiums</span></button>);})}
+{selCountry&&(COUNTRIES[selCountry]?.stadiums||[]).map(s=>{const a=sel?.slug===s.slug;const c=EC[s.event]||[180,180,180];
+return(<button key={s.slug} onClick={()=>handleSelect(s)} style={{background:a?`rgba(${c},0.12)`:"#131314",border:a?`1px solid rgba(${c},0.4)`:"1px solid #1e1e1f",borderRadius:4,padding:"5px 10px",color:a?"#eee":"#777",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>
+<span style={{color:`rgb(${c})`,marginRight:4}}>●</span>{s.name}<span style={{color:"#555",marginLeft:5,fontSize:9}}>{s.places}</span></button>);})}</div>
+</div>
+
+<div ref={dRef}>{sd?<Dash data={sd} onExpand={setLightbox} manifest={IX}/>:null}</div>
+
+<Onboarding step={obStep}
+  onNext={()=>setObStep(s=>(s===null||s>=2)?null:s+1)}
+  onSkip={obDone}/>
+
+{escToast&&<div className={`esc-toast${escToast==='out'?' out':''}`}>
+  <div style={{background:"rgba(10,10,11,0.92)",backdropFilter:"blur(16px)",border:"1px solid #2a2a2b",borderRadius:24,padding:"10px 22px",display:"flex",alignItems:"center",gap:12,fontSize:11,color:"#888",boxShadow:"0 4px 32px rgba(0,0,0,0.7)"}}>
+    <kbd style={{background:"#1a1a1b",border:"1px solid #444",borderBottom:"2px solid #333",borderRadius:5,padding:"4px 10px",fontSize:12,color:"#ccc",fontFamily:"inherit",fontWeight:700,animation:"kbdPulse 1.5s ease infinite"}}>ESC</kbd>
+    <span>Press to navigate back between levels</span>
+  </div>
+</div>}
+
+</div>);
+}
+
+function Onboarding({step,onNext,onSkip}){
+  if(step===null||step===undefined)return null;
+  const steps=[
+    {title:"Select a country",body:"Click any country button at the bottom of the map to zoom in and see its stadiums."},
+    {title:"Choose a stadium",body:"Now pick a stadium from the list. The map will fly to it and load its urban data."},
+    {title:"Explore the dashboard",body:"Browse activity maps, density, walkability and more. Use ESC to navigate back."},
+  ];
+  const s=steps[Math.min(step,2)];
+  return(<div key={step} className="ob-card ob-in">
+    <div className="ob-step">Getting started</div>
+    <div className="ob-title">{s.title}</div>
+    <div className="ob-body">{s.body}</div>
+    <div className="ob-dots">
+      {[0,1,2].map(i=><div key={i} className={`ob-dot${i===step?' active':''}`}/>)}
+    </div>
+    <div className="ob-actions">
+      <button className="ob-skip" onClick={onSkip}>Skip</button>
+      <button className="ob-btn" onClick={step<2?onNext:onSkip}>{step<2?"Next →":"Done"}</button>
+    </div>
+  </div>);
+}
+
+
+function Dash({data,onExpand,manifest}){
+const{m:meta,p:places,cc:catCount,tp:totalPlaces,den}=data;
+const[maxDist,setMaxDist]=useState(3000);
+const[selCats,setSelCats]=useState(null);
+const[selTypes,setSelTypes]=useState(null);
+const[selInterval,setSelInterval]=useState(null); // null=all, [min,max]=selected bin
+
+const toggleInterval=(min,max)=>{
+  setSelInterval(prev=>prev&&prev[0]===min&&prev[1]===max?null:[min,max]);
+};
+
+const filteredBase=React.useMemo(()=>{
+  return places.filter(d=>{
+    const dist=d[3];
+    if(dist==null||dist>maxDist)return false;
+    if(selCats&&!selCats.has(d[2]))return false;
+    if(selInterval&&(dist<selInterval[0]||dist>=selInterval[1]))return false;
+    return true;
+  });
+},[places,maxDist,selCats,selInterval]);
+
+const filtered=React.useMemo(()=>{
+  if(!selTypes) return filteredBase;
+  return filteredBase.filter(d=>{
+    const typ=d[4]||"unknown";
+    return selTypes.has(typ);
+  });
+},[filteredBase,selTypes]);
+
+const filteredCatCount=React.useMemo(()=>{
+  const cc={};filtered.forEach(d=>{cc[d[2]]=(cc[d[2]]||0)+1;});return cc;
+},[filtered]);
+
+const toggleCat=(cat)=>{
+  if(!selCats){const s=new Set([cat]);setSelCats(s);}
+  else if(selCats.has(cat)){const s=new Set(selCats);s.delete(cat);setSelCats(s.size===0?null:s);}
+  else{const s=new Set(selCats);s.add(cat);setSelCats(s);}
+};
+const clearFilter=()=>setSelCats(null);
+const toggleType=(typ)=>{
+  if(!selTypes){const s=new Set([typ]);setSelTypes(s);}
+  else if(selTypes.has(typ)){const s=new Set(selTypes);s.delete(typ);setSelTypes(s.size===0?null:s);}
+  else{const s=new Set(selTypes);s.add(typ);setSelTypes(s);}
+};
+const clearTypeFilter=()=>setSelTypes(null);
+
+return(
+<div style={{height:"100vh",display:"flex",flexDirection:"row",padding:"10px 16px",gap:8,overflow:"hidden",background:BG}}>
+<div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+{/* Header */}
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,paddingBottom:4,marginBottom:2}}>
+<h2 style={{margin:0,fontSize:16,fontWeight:700,color:"#fff"}}>Stadia Urban Analysis
+<span style={{fontWeight:400,color:"#777",fontSize:13,marginLeft:10}}>{meta.name}</span></h2>
+{(()=>{const hl=genHeadline(meta.slug,meta.name,manifest);return hl?<p style={{margin:"3px 0 0",fontSize:10,color:"#555",fontStyle:"italic",maxWidth:700}}>{hl}</p>:null;})()}
+<div style={{display:"flex",gap:14,fontSize:10,color:"#555"}}><span>{meta.event} {meta.year}</span><span>{meta.latitude.toFixed(4)}°, {meta.longitude.toFixed(4)}°</span></div></div>
+
+{/* FILTER BAR */}
+<div style={{display:"flex",alignItems:"center",gap:16,flexShrink:0,padding:"4px 0 6px",borderBottom:"1px solid #1e1e1f",marginBottom:4}}>
+<div style={{display:"flex",alignItems:"center",gap:8}}>
+<span style={{fontSize:9,color:"#666",whiteSpace:"nowrap"}}>Radius</span>
+<input type="range" min={100} max={3000} step={50} value={maxDist} onChange={e=>setMaxDist(Number(e.target.value))}
+  style={{width:100,accentColor:"#4a9eff",height:3,cursor:"pointer"}}/>
+<span style={{fontSize:10,fontWeight:600,color:"#aaa",fontFamily:"'Courier New',monospace",minWidth:42}}>{maxDist}m</span>
+</div>
+<div style={{width:1,height:14,background:"#333"}}/>
+<div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap",flex:1,overflow:"hidden",maxHeight:24}}>
+<span style={{fontSize:9,color:"#666",marginRight:2}}>Categories</span>
+{selCats&&<button onClick={clearFilter} style={{fontSize:8,color:"#999",background:"#222",border:"1px solid #333",borderRadius:3,padding:"1px 5px",cursor:"pointer",fontFamily:"inherit"}}>✕ Cats</button>}
+{selTypes&&<button onClick={clearTypeFilter} style={{fontSize:8,color:"#caa6ff",background:"rgba(202,166,255,0.08)",border:"1px solid rgba(202,166,255,0.25)",borderRadius:3,padding:"1px 5px",cursor:"pointer",fontFamily:"inherit"}}>✕ Types{selTypes.size===1?`: ${Array.from(selTypes)[0].slice(0,14)}`:""}</button>}
+{selInterval&&<button onClick={()=>setSelInterval(null)} style={{fontSize:8,color:"#4a9eff",background:"rgba(74,158,255,0.1)",border:"1px solid rgba(74,158,255,0.3)",borderRadius:3,padding:"1px 5px",cursor:"pointer",fontFamily:"inherit"}}>✕ {selInterval[0]}–{selInterval[1]}m</button>}
+{Object.entries(CC).map(([cat,c])=>{
+  const active=!selCats||selCats.has(cat);
+  const count=filteredCatCount[cat]||0;
+  return(<button key={cat} onClick={()=>toggleCat(cat)} style={{
+    fontSize:8,padding:"1px 5px",borderRadius:3,cursor:"pointer",fontFamily:"inherit",
+    background:active?`rgba(${c},0.15)`:"transparent",
+    border:active?`1px solid rgba(${c},0.4)`:"1px solid #2a2a2b",
+    color:active?`rgb(${c})`:"#444",opacity:count>0||!selCats?1:0.3,
+  }}>{cat}{count>0&&active?` ${count}`:""}</button>);
+})}
+</div>
+<div style={{fontSize:9,color:"#555",whiteSpace:"nowrap"}}>{filtered.length} / {places.length}</div>
+</div>
+
+<div style={{flex:1,display:"grid",gridTemplateRows:"1.3fr 28px 1fr",gap:0,minHeight:0,overflow:"hidden"}}>
+
+{/* ROW 1 — Maps + charts */}
+<div style={{display:"grid",gridTemplateColumns:"1.8fr 1.8fr 0.55fr 0.85fr",gap:8,minHeight:0}}>
+  {/* Places Map */}
+  <div className="map-panel" style={{borderRadius:6,overflow:"hidden",position:"relative"}}>
+    <div style={{position:"absolute",top:0,left:0,right:0,padding:"5px 10px",zIndex:2,background:"linear-gradient(to bottom, rgba(44,53,60,0.9) 0%, transparent 100%)"}}><span style={{fontSize:10,fontWeight:600,color:"#888",position:"relative"}} className="pnl-title-wrap">Where are people spending time?<span className="pnl-tooltip">Each dot represents a place from OpenStreetMap, colored by category. The spread and clustering of dots reveals how diverse and dense the urban fabric is around the stadium.</span></span></div>
+    <button className="expand-btn" onClick={()=>onExpand({type:"scatter",title:"Where are people spending time?",places:filtered,meta})}>⛶ Expand</button>
+    <ScatterMap places={filtered} meta={meta}/>
+  </div>
+
+  {/* Density Map */}
+  <div className="map-panel" style={{borderRadius:6,overflow:"hidden",position:"relative"}}>
+    <div style={{position:"absolute",top:0,left:0,right:0,padding:"5px 10px",zIndex:2,background:"linear-gradient(to bottom, rgba(44,53,60,0.9) 0%, transparent 100%)"}}><span style={{fontSize:10,fontWeight:600,color:"#888",position:"relative"}} className="pnl-title-wrap">Where does activity concentrate?<span className="pnl-tooltip">A kernel density heatmap showing where places cluster most intensely. Red areas indicate the highest concentration of urban activity. Green dots mark the local density peaks.</span></span></div>
+    <button className="expand-btn" onClick={()=>onExpand({type:"density",title:"Where does activity concentrate?",density:den,meta})}>⛶ Expand</button>
+    <DensityMap density={den} meta={meta}/>
+  </div>
+
+  <Pnl t={`How far do people walk from the stadium?${selInterval?` · ${selInterval[0]}–${selInterval[1]}m`:""}`} tip="Shows the distribution of places by walking distance along the street network. Bars represent 250m intervals up to 3km."><DistHist places={places} maxDist={maxDist} selInterval={selInterval} onIntervalClick={toggleInterval} meta={meta}/></Pnl>
+
+  <div style={{borderRadius:6,overflow:"hidden",background:"#151616",display:"flex",flexDirection:"column",minHeight:0}}>
+    <div style={{padding:"5px 10px",borderBottom:"1px solid #1e1e1f",fontSize:10,fontWeight:600,color:"#777",flexShrink:0}}><span class="pnl-title-wrap">What types of places exist here?<span class="pnl-tooltip">Each block's area represents the number of places in that category. Click any block to filter all dashboard panels by that category.</span></span></div>
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",minHeight:0,overflow:"hidden"}}>
+      <Donut catCount={filteredCatCount} selCats={selCats} onToggle={toggleCat}/>
+    </div>
+  </div>
+</div>
+
+{/* LEGEND ROW — split: categories under places map, density bar under density map */}
+<div style={{display:"grid",gridTemplateColumns:"1.8fr 1.8fr 0.55fr 0.85fr",gap:8,padding:"3px 0 2px"}}>
+  {/* Categories legend — under Places Map only */}
+  <div style={{display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:"1px 4px",paddingLeft:2,alignContent:"start"}}>
+    {Object.entries(CC).map(([cat,c])=>(<div key={cat} style={{display:"flex",alignItems:"center",gap:2,fontSize:8,color:"#777"}}>
+      <div style={{width:5,height:5,borderRadius:"50%",background:`rgb(${c})`,flexShrink:0}}/>
+      <span style={{textTransform:"capitalize",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cat}</span>
+    </div>))}
+  </div>
+  {/* Density colorbar — under Density Map only */}
+  <div style={{display:"flex",flexDirection:"column",gap:1,justifyContent:"center"}}>
+    <div style={{height:6,borderRadius:3,background:"linear-gradient(to right, rgba(255,255,230,0.8), rgba(254,196,79,0.8), rgba(246,120,32,0.8), rgba(200,20,15,0.8), rgba(140,0,20,0.8))"}}/>
+    <div style={{display:"flex",justifyContent:"space-between"}}>
+      <span style={{fontSize:8,color:"#666"}}>Low</span>
+      <span style={{fontSize:8,color:"#666"}}>Mid</span>
+      <span style={{fontSize:8,color:"#666"}}>High</span>
+    </div>
+  </div>
+  {/* Empty spacers for histogram and categories columns */}
+  <div/>
+  <div/>
+</div>
+
+{/* ROW 2 */}
+<div style={{display:"grid",gridTemplateColumns:"2.7fr 0.9fr 1.4fr",gap:8,minHeight:0,overflow:"hidden"}}>
+  <Pnl t="How does activity change with distance?" tip="Each line represents a category of place. Peaks show where that activity concentrates relative to the stadium."><CompChart places={filtered} meta={meta}/></Pnl>
+  <Pnl t="Stadium Profile" tip="Key urban metrics for this stadium's surroundings — place counts, diversity, street network characteristics and predominant activity types."><Stats meta={meta} total={filtered.length} catCount={filteredCatCount} slug={meta.slug} manifest={IX}/></Pnl>
+  <Pnl t="How walkable are the surroundings?" tip="Compares actual walking distances (graph) vs straight-line distances (linear). A tighter shape means more direct, walkable streets. The % shows path directness."><WalkRadar places={filtered} maxDist={maxDist}/></Pnl>
+</div>
+
+</div>
+</div>
+
+{/* TYPE BAR — right column */}
+<div style={{width:190,flexShrink:0,background:"#151616",borderRadius:6,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+  <div style={{padding:"5px 10px",borderBottom:"1px solid #1e1e1f",fontSize:10,fontWeight:600,color:"#777",flexShrink:0}}><span class="pnl-title-wrap">Most common place types<span class="pnl-tooltip">The 50 most frequent place types within the selected radius, ranked by count and colored by category. Click any row to filter all dashboard panels by that place type.</span></span></div>
+  <div style={{flex:1,overflow:"hidden",minHeight:0}}><TypeBar places={filteredBase} selTypes={selTypes} onToggleType={toggleType}/></div>
+</div>
+
+</div>);
+}
+
+
+function TypeBar({places, selTypes, onToggleType}){
+const cRef=useRef(null);const pRef=useRef(null);const rowsRef=useRef([]);
+useEffect(()=>{
+  if(!places?.length||!pRef.current)return;
+  const c=cRef.current;const rect=pRef.current.getBoundingClientRect();
+  const w=rect.width-4,h=rect.height-4;if(w<20||h<20)return;
+  c.width=w*2;c.height=h*2;c.style.width=w+"px";c.style.height=h+"px";
+  const ctx=c.getContext("2d");ctx.scale(2,2);ctx.clearRect(0,0,w,h);
+  rowsRef.current=[];
+
+  const typeCat={};const typeCnt={};
+  places.forEach(d=>{
+    const typ=d[4]||"unknown";const cat=d[2]||"uncategorized";
+    typeCnt[typ]=(typeCnt[typ]||0)+1;
+    if(!typeCat[typ])typeCat[typ]=cat;
+  });
+
+  const top=Object.entries(typeCnt).sort((a,b)=>b[1]-a[1]).slice(0,40);
+  if(!top.length)return;
+  const maxVal=top[0][1];const n=top.length;
+
+  const pad={t:4,b:4,l:4,r:4};
+  const gap=2;
+  const ph=h-pad.t-pad.b;
+  const bh=Math.max(8,(ph-(n-1)*gap)/n);
+  const fontSize=Math.max(6,Math.min(8,bh/2-0.5));
+  const cntW=22;
+  const labelW=Math.floor(w*0.45);
+  const barAreaX=pad.l+labelW+3;
+  const barAreaW=w-barAreaX-cntW-pad.r;
+
+  function wrapText(text,maxW){
+    const words=text.replace(/_/g," ").split(" ");
+    const lines=[];let cur="";
+    ctx.font=`${fontSize}px system-ui`;
+    words.forEach(word=>{
+      const test=cur?cur+" "+word:word;
+      if(ctx.measureText(test).width<=maxW){cur=test;}
+      else{if(cur)lines.push(cur);cur=word;}
+    });
+    if(cur)lines.push(cur);
+    return lines;
+  }
+
+  top.forEach(([typ,cnt],i)=>{
+    const cat=typeCat[typ]||"uncategorized";
+    const rgb=CC[cat]||CC.uncategorized;
+    const barW=Math.max(2,(cnt/maxVal)*barAreaW);
+    const y=pad.t+i*(bh+gap);
+
+    const isActive=!selTypes||selTypes.has(typ);
+    const isSelected=!!(selTypes&&selTypes.has(typ));
+    ctx.fillStyle=isActive?`rgba(${rgb},${isSelected?0.85:0.55})`:"rgba(80,80,84,0.18)";
+    ctx.fillRect(barAreaX,y,barW,bh);
+    if(isSelected){ctx.strokeStyle=`rgba(${rgb},0.95)`;ctx.lineWidth=1;ctx.strokeRect(barAreaX+0.5,y+0.5,Math.max(1,barW-1),Math.max(1,bh-1));}
+
+    const lines=wrapText(typ,labelW-4);
+    const lineH=fontSize+1;
+    const totalTextH=lines.length*lineH;
+    const textStartY=y+(bh-totalTextH)/2+fontSize;
+    rowsRef.current.push({typ,y,h:bh});
+    ctx.fillStyle=isActive?"#999":"#555";ctx.font=`${fontSize}px system-ui`;
+    ctx.textAlign="right";ctx.textBaseline="alphabetic";
+    lines.forEach((line,li)=>{ctx.fillText(line,pad.l+labelW-2,textStartY+li*lineH);});
+
+    ctx.fillStyle=isSelected?"#ddd":"#555";ctx.textAlign="right";
+    ctx.fillText(cnt,w-pad.r,y+bh/2+fontSize/2-1);
+  });
+},[places,selTypes]);
+const onCanvasClick=(e)=>{
+  if(!rowsRef.current.length||!pRef.current||!onToggleType)return;
+  const rect=pRef.current.getBoundingClientRect();
+  const y=e.clientY-rect.top-2;
+  const hit=rowsRef.current.find(r=>y>=r.y&&y<=r.y+r.h);
+  if(hit) onToggleType(hit.typ);
+};
+return(<div ref={pRef} style={{width:"100%",height:"100%",padding:2}}>
+  <canvas ref={cRef} onClick={onCanvasClick} style={{display:"block",cursor:"pointer"}}/>
+</div>);}
+
+function WalkRadar({places, maxDist}){
+const cRef=useRef(null);const pRef=useRef(null);
+useEffect(()=>{
+  if(!places?.length||!pRef.current)return;
+  const c=cRef.current;
+  const rect=pRef.current.getBoundingClientRect();
+  const w=rect.width,h=rect.height;
+  if(w<40||h<40)return;
+  c.width=w*2;c.height=h*2;c.style.width=w+"px";c.style.height=h+"px";
+  const ctx=c.getContext("2d");ctx.scale(2,2);ctx.clearRect(0,0,w,h);
+
+  // Bin places into 300m intervals for both graph (d[3]) and linear (d[5]) distances
+  const binSize=300;
+  const bins=["0–300","300–600","600–900","900–1.2k","1.2–1.5k","1.5–1.8k","1.8–2.1k","2.1–2.4k","2.4–2.7k","2.7–3k"];
+  const nBins=bins.length;
+  const graphCounts=new Array(nBins).fill(0);
+  const linearCounts=new Array(nBins).fill(0);
+
+  places.forEach(d=>{
+    const gd=d[3];if(gd!=null){const b=Math.min(Math.floor(gd/binSize),nBins-1);graphCounts[b]++;}
+    const ld=d[5];if(ld!=null){const b=Math.min(Math.floor(ld/binSize),nBins-1);linearCounts[b]++;}
+  });
+
+  const hasLinear=linearCounts.some(v=>v>0);
+  let overlapScore=null;
+  if(hasLinear){
+    const sumMin=graphCounts.reduce((s,g,i)=>s+Math.min(g,linearCounts[i]),0);
+    const sumMax=graphCounts.reduce((s,g,i)=>s+Math.max(g,linearCounts[i]),0);
+    overlapScore=sumMax>0?Math.round((sumMin/sumMax)*100):null;
+  }
+  const maxVal=Math.max(...graphCounts,...linearCounts,1);
+
+  // Radar geometry — leave room for legend at bottom
+  const legH=22;
+  const cx=w/2, cy=(h-legH)/2;
+  const margin=Math.min(cx,cy)*0.28;
+  const maxR=Math.min(cx,cy)-margin;
+  const angleStep=(Math.PI*2)/nBins;
+  const startAngle=-Math.PI/2;
+  const pt=(angle,r)=>([cx+Math.cos(angle)*r, cy+Math.sin(angle)*r]);
+
+  // Concentric grid rings
+  const nRings=4;
+  for(let ri=1;ri<=nRings;ri++){
+    const r=(ri/nRings)*maxR;
+    ctx.beginPath();
+    for(let i=0;i<nBins;i++){
+      const angle=startAngle+i*angleStep;
+      const [x,y]=pt(angle,r);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle=`rgba(255,255,255,${ri===nRings?0.1:0.04})`;
+    ctx.lineWidth=0.5;ctx.stroke();
+  }
+
+  // Spokes + labels
+  const labelFontSize=Math.max(6,Math.min(8,w*0.042));
+  ctx.font=`${labelFontSize}px system-ui`;
+  for(let i=0;i<nBins;i++){
+    const angle=startAngle+i*angleStep;
+    const [x0,y0]=pt(angle,2);
+    const [x1,y1]=pt(angle,maxR);
+    ctx.strokeStyle="rgba(255,255,255,0.06)";ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+    // Label
+    const labelR=maxR+margin*0.52;
+    const [lx,ly]=pt(angle,labelR);
+    ctx.fillStyle="#4a4a4a";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText(bins[i],lx,ly);
+  }
+
+  // Draw a filled polygon
+  const drawPolygon=(counts,strokeColor,fillColor,dotColor)=>{
+    ctx.beginPath();
+    for(let i=0;i<nBins;i++){
+      const angle=startAngle+i*angleStep;
+      const r=(counts[i]/maxVal)*maxR;
+      const [x,y]=pt(angle,r);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.fillStyle=fillColor;ctx.fill();
+    ctx.strokeStyle=strokeColor;ctx.lineWidth=1.5;ctx.stroke();
+    // Vertex dots
+    for(let i=0;i<nBins;i++){
+      const angle=startAngle+i*angleStep;
+      const r=(counts[i]/maxVal)*maxR;
+      const [x,y]=pt(angle,r);
+      ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);
+      ctx.fillStyle=dotColor;ctx.fill();
+    }
+  };
+
+  // Draw linear first (behind), then graph on top
+  if(hasLinear){
+    drawPolygon(linearCounts,"rgba(251,154,153,0.9)","rgba(251,154,153,0.1)","rgba(251,154,153,0.9)");
+  }
+  drawPolygon(graphCounts,"rgba(74,158,255,0.9)","rgba(74,158,255,0.13)","rgba(74,158,255,0.9)");
+
+  // Center label
+  const cLabelSize=Math.max(9,Math.min(15,maxR*0.22));
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  if(overlapScore!==null){
+    ctx.fillStyle="#ddd";ctx.font=`700 ${cLabelSize*1.1}px system-ui`;
+    ctx.fillText(overlapScore+"%",cx,cy-cLabelSize*0.6);
+    ctx.font=`${Math.max(6,labelFontSize-1)}px system-ui`;ctx.fillStyle="#555";
+    ctx.fillText("path",cx,cy+cLabelSize*0.1);
+    ctx.fillText("directness",cx,cy+cLabelSize*0.85);
+  } else {
+    ctx.fillStyle="#ddd";ctx.font=`600 ${cLabelSize}px system-ui`;
+    ctx.fillText(places.length,cx,cy-cLabelSize*0.5);
+    ctx.font=`${labelFontSize}px system-ui`;ctx.fillStyle="#555";
+    ctx.fillText("places",cx,cy+cLabelSize*0.6);
+  }
+
+  // Legend at bottom
+  const legY=h-legH+8;
+  const midX=w/2;
+  const swatchW=14,swatchH=3,gap=6;
+  // Graph
+  ctx.fillStyle="rgba(74,158,255,0.9)";ctx.fillRect(midX-(hasLinear?90:45),legY,swatchW,swatchH);
+  ctx.fillStyle="#555";ctx.font=`${labelFontSize}px system-ui`;ctx.textAlign="left";
+  ctx.fillText("Graph dist.",midX-(hasLinear?90:45)+swatchW+gap,legY+swatchH/2+1);
+  // Linear
+  if(hasLinear){
+    ctx.fillStyle="rgba(251,154,153,0.9)";ctx.fillRect(midX+10,legY,swatchW,swatchH);
+    ctx.fillText("Linear dist.",midX+10+swatchW+gap,legY+swatchH/2+1);
+  }
+
+},[places,maxDist]);
+
+return(<div ref={pRef} style={{width:"100%",height:"100%",padding:4}}>
+  <canvas ref={cRef} style={{display:"block"}}/>
+</div>);}
+
+function Pnl({t,tip,children}){
+return(<div style={{background:"#151616",borderRadius:6,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0,height:"100%"}}>
+<div style={{padding:"5px 10px",borderBottom:"1px solid #1e1e1f",fontSize:10,fontWeight:600,color:"#777",flexShrink:0}}>
+  {tip?<span className="pnl-title-wrap">{t}<span className="pnl-tooltip">{tip}</span></span>:t}
+</div>
+<div style={{padding:6,flex:1,minHeight:0,overflow:"hidden"}}>{children}</div></div>);
+}
+
+function ScatterMap({places,meta}){
+const cRef=useRef(null);
+useEffect(()=>{if(!cRef.current||!places?.length)return;
+const map=new maplibregl.Map({container:cRef.current,style:"https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json",center:[meta.longitude,meta.latitude],zoom:13.45,attributionControl:false,interactive:true});
+map.on("load",()=>{
+  const features=places.map(d=>({type:"Feature",geometry:{type:"Point",coordinates:[d[1],d[0]]},properties:{category:d[2],r:(CC[d[2]]||CC.uncategorized)[0],g:(CC[d[2]]||CC.uncategorized)[1],b:(CC[d[2]]||CC.uncategorized)[2]}}));
+  map.addSource("places",{type:"geojson",data:{type:"FeatureCollection",features}});
+  if(map.getLayer("building")){map.setPaintProperty("building","fill-color","#2a2e33");map.setPaintProperty("building","fill-opacity",0.9);map.setPaintProperty("building","fill-outline-color","#3a3f46");}
+  map.addLayer({id:"places-dots",type:"circle",source:"places",paint:{"circle-radius":["interpolate",["linear"],["zoom"],10,1.5,14,3.5,18,7],"circle-color":["concat","rgb(",["get","r"],",",["get","g"],",",["get","b"],")"],"circle-opacity":0.85}});
+});return()=>map.remove();},[places,meta]);
+return <div ref={cRef} style={{width:"100%",height:"100%"}}/>;
+}
+
+function DensityMap({density,meta}){
+const cRef=useRef(null);
+useEffect(()=>{if(!cRef.current||!density)return;
+const{bounds,gs,grid,peaks,pts,ctr,npts,paths}=density;
+const[west,south,east,north]=bounds;
+const colorFn=makeYlOrRd(npts);
+
+const map=new maplibregl.Map({container:cRef.current,style:"https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json",center:[meta.longitude,meta.latitude],zoom:13.45,attributionControl:false,interactive:true});
+
+map.on("load",()=>{
+  const canvas=document.createElement("canvas");canvas.width=gs;canvas.height=gs;
+  const ctx=canvas.getContext("2d");const imgData=ctx.createImageData(gs,gs);
+  for(let j=0;j<gs;j++){for(let i=0;i<gs;i++){
+    const gi=i,gj=gs-1-j;const val=grid[gi*gs+gj]/255;
+    const[r,g,b,a]=colorFn(val);const idx=(j*gs+i)*4;
+    imgData.data[idx]=r;imgData.data[idx+1]=g;imgData.data[idx+2]=b;imgData.data[idx+3]=a;}}
+  ctx.putImageData(imgData,0,0);
+  if(map.getLayer("building")){map.setPaintProperty("building","fill-color","#2a2e33");map.setPaintProperty("building","fill-opacity",0.9);map.setPaintProperty("building","fill-outline-color","#3a3f46");}
+  map.addSource("density-img",{type:"image",url:canvas.toDataURL(),coordinates:[[west,north],[east,north],[east,south],[west,south]]});
+  map.addLayer({id:"density-layer",type:"raster",source:"density-img",paint:{"raster-opacity":0.8,"raster-fade-duration":0}});
+
+  if(ctr&&ctr.length){
+    const features=ctr.map(c=>({type:"Feature",geometry:{type:"LineString",coordinates:c.c},properties:{level:c.l}}));
+    map.addSource("contours",{type:"geojson",data:{type:"FeatureCollection",features}});
+    map.addLayer({id:"contour-lines",type:"line",source:"contours",paint:{
+      "line-color":["interpolate",["linear"],["get","level"],0.15,"rgba(0,0,0,0.12)",0.35,"rgba(0,0,0,0.2)",0.55,"rgba(0,0,0,0.3)",0.75,"rgba(40,0,0,0.35)",0.85,"rgba(60,0,0,0.4)"],
+      "line-width":["interpolate",["linear"],["get","level"],0.15,0.6,0.5,1.0,0.85,1.5]}});
+  }
+
+  if(pts&&pts.length){
+    const ptF=pts.map(p=>({type:"Feature",geometry:{type:"Point",coordinates:[p[1],p[0]]},properties:{}}));
+    map.addSource("density-pts",{type:"geojson",data:{type:"FeatureCollection",features:ptF}});
+    map.addLayer({id:"density-pts-layer",type:"circle",source:"density-pts",paint:{
+      "circle-radius":["interpolate",["linear"],["zoom"],10,0.8,14,2,18,4],
+      "circle-color":"#3366cc","circle-opacity":0.55,"circle-stroke-width":0.3,"circle-stroke-color":"#111"}});
+  }
+
+  // Stadium center marker (white ring)
+  map.addSource("stadium-center",{type:"geojson",data:{type:"Feature",geometry:{type:"Point",coordinates:[meta.longitude,meta.latitude]},properties:{}}});
+  map.addLayer({id:"stadium-center-ring",type:"circle",source:"stadium-center",paint:{"circle-radius":8,"circle-color":"transparent","circle-stroke-width":2,"circle-stroke-color":"rgba(255,255,255,0.7)"}});
+
+  // Shortest path layer — starts empty, filled on hover
+  map.addSource("active-path",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+  // Glow underneath
+  map.addLayer({id:"active-path-glow",type:"line",source:"active-path",paint:{
+    "line-color":"#00ff88","line-width":6,"line-opacity":0.25,"line-blur":4}});
+  // Dashed path on top
+  map.addLayer({id:"active-path-line",type:"line",source:"active-path",paint:{
+    "line-color":"#00ff88","line-width":2,"line-opacity":0.9,"line-dasharray":[4,3]}});
+
+  // Peaks
+  if(peaks&&peaks.length){
+    const pkF=peaks.map((p,i)=>({type:"Feature",geometry:{type:"Point",coordinates:[p[1],p[0]]},properties:{idx:i,density:p[2],lat:p[0],lng:p[1],dist:p[3]||null}}));
+    map.addSource("peaks",{type:"geojson",data:{type:"FeatureCollection",features:pkF}});
+    map.addLayer({id:"peaks-glow",type:"circle",source:"peaks",paint:{"circle-radius":14,"circle-blur":0.6,"circle-color":"rgba(0,255,136,0.15)"}});
+    map.addLayer({id:"peaks-dot",type:"circle",source:"peaks",paint:{"circle-radius":5,"circle-color":"#00ff88","circle-stroke-width":1.5,"circle-stroke-color":"#000"}});
+
+    const popup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:10});
+
+    map.on("mouseenter","peaks-dot",(e)=>{
+      map.getCanvas().style.cursor="pointer";
+      const p=e.features[0].properties;
+      const idx=p.idx;
+
+      // Show path if paths data exists
+      const pathEntry=paths&&paths.find(p=>p.peakIdx===idx);
+      if(pathEntry&&pathEntry.coords&&pathEntry.coords.length>0){
+        const coords=pathEntry.coords.map(pt=>[pt[0],pt[1]]);
+        map.getSource("active-path").setData({
+          type:"FeatureCollection",
+          features:[{type:"Feature",geometry:{type:"LineString",coordinates:coords},properties:{}}]
+        });
+      } else {
+        // Fallback: draw straight line from peak to stadium center
+        map.getSource("active-path").setData({
+          type:"FeatureCollection",
+          features:[{type:"Feature",geometry:{type:"LineString",coordinates:[[p.lng,p.lat],[meta.longitude,meta.latitude]]},properties:{}}]
+        });
+      }
+
+      const pathEntry2=paths&&paths.find(pp=>pp.peakIdx===idx);const distLabel=pathEntry2?`${Math.round(pathEntry2.dist)}m walking`:"—";
+      popup.setLngLat(e.features[0].geometry.coordinates).setHTML(
+        `<div style="font-family:system-ui;font-size:10px">
+          <strong style="color:#00ff88">Density Peak #${idx+1}</strong><br>
+          <span style="color:#aaa">Intensity: ${(p.density*100).toFixed(0)}%</span><br>
+          <span style="color:#888">${distLabel}</span><br>
+          <span style="color:#666">${Number(p.lat).toFixed(5)}°, ${Number(p.lng).toFixed(5)}°</span>
+        </div>`
+      ).addTo(map);
+    });
+
+    map.on("mouseleave","peaks-dot",()=>{
+      map.getCanvas().style.cursor="";
+      popup.remove();
+      // Clear path
+      map.getSource("active-path").setData({type:"FeatureCollection",features:[]});
+    });
+  }
+});return()=>map.remove();},[density,meta]);
+return <div ref={cRef} style={{width:"100%",height:"100%"}}/>;
+}
+
+function DistHist({places,maxDist,selInterval,onIntervalClick,meta}){
+const cRef=useRef(null);const pRef=useRef(null);
+const binSize=250;const nBins=Math.ceil(3000/binSize);
+const binsRef=useRef([]);const geomRef=useRef({});
+
+useEffect(()=>{if(!places?.length||!pRef.current)return;const c=cRef.current;const rect=pRef.current.getBoundingClientRect();
+const w=rect.width-4,h=rect.height-4;if(w<20||h<20)return;c.width=w*2;c.height=h*2;c.style.width=w+"px";c.style.height=h+"px";
+const ctx=c.getContext("2d");ctx.scale(2,2);ctx.clearRect(0,0,w,h);
+
+const dists=places.map(d=>d[3]).filter(d=>d!=null&&d<=3000);
+const bins=new Array(nBins).fill(0);
+dists.forEach(d=>{const b=Math.min(Math.floor(d/binSize),nBins-1);bins[b]++;});
+binsRef.current=bins;
+
+const fixedMax=1500;
+const pad={t:6,b:22,l:64,r:10};
+const pw=w-pad.l-pad.r,ph=h-pad.t-pad.b;
+const bh=ph/nBins;
+const totalBarsH=bh*nBins;
+const yOff=pad.t+(ph-totalBarsH)/2;
+geomRef.current={pad,pw,ph,bh,totalBarsH,yOff,fixedMax,w,h};
+
+bins.forEach((n,i)=>{
+  const barW=Math.min((n/fixedMax)*pw,pw);
+  const row=nBins-1-i;
+  const y=yOff+row*bh;
+  const isSelected=selInterval&&selInterval[0]===i*binSize&&selInterval[1]===(i+1)*binSize;
+  ctx.fillStyle=isSelected?"rgba(80,160,220,0.95)":"rgba(80,160,220,0.45)";
+  ctx.fillRect(pad.l,y+1,barW,bh-2);
+  if(isSelected){
+    ctx.strokeStyle="rgba(120,190,255,0.9)";ctx.lineWidth=1;
+    ctx.strokeRect(pad.l,y+1,barW,bh-2);
+  }
+});
+
+ctx.fillStyle="#999";ctx.font="9px system-ui";ctx.textAlign="right";ctx.textBaseline="middle";
+for(let i=0;i<nBins;i++){
+  const row=nBins-1-i;
+  const label=`(${i*binSize}, ${(i+1)*binSize}]`;
+  ctx.fillText(label,pad.l-4,yOff+row*bh+bh/2);
+}
+ctx.strokeStyle="#444";ctx.lineWidth=0.5;
+ctx.beginPath();ctx.moveTo(pad.l,yOff);ctx.lineTo(pad.l,yOff+totalBarsH);ctx.lineTo(pad.l+pw,yOff+totalBarsH);ctx.stroke();
+// X-axis: only 0 and 1500
+ctx.fillStyle="#999";ctx.font="8px system-ui";ctx.textAlign="center";ctx.textBaseline="top";
+[0,1500].forEach(v=>{
+  const x=pad.l+(v/fixedMax)*pw;
+  ctx.fillText(v.toString(),x,yOff+totalBarsH+4);
+  ctx.strokeStyle="#333";ctx.beginPath();ctx.moveTo(x,yOff+totalBarsH);ctx.lineTo(x,yOff+totalBarsH+3);ctx.stroke();
+});
+// Count labels on each bar
+bins.forEach((n,i)=>{
+  if(n===0)return;
+  const barW=Math.min((n/fixedMax)*pw,pw);
+  const row=nBins-1-i;
+  const y=yOff+row*bh+bh/2;
+  ctx.font="7px system-ui";ctx.textBaseline="middle";
+  const txt=n.toString();
+  const txtW=ctx.measureText(txt).width;
+  const spaceInBar=barW-4;
+  if(spaceInBar>txtW+2){
+    // enough room inside bar — draw at right edge of bar
+    ctx.fillStyle="rgba(255,255,255,0.9)";ctx.textAlign="right";
+    ctx.fillText(txt,pad.l+barW-3,y);
+  } else {
+    // bar too small — draw just after bar end
+    ctx.fillStyle="rgba(180,180,180,0.8)";ctx.textAlign="left";
+    ctx.fillText(txt,pad.l+barW+3,y);
+  }
+});
+},[places,selInterval,meta]);
+
+const handleClick=(e)=>{
+  if(!pRef.current)return;
+  const rect=cRef.current.getBoundingClientRect();
+  const my=e.clientY-rect.top;
+  const{pad,bh,totalBarsH,yOff}=geomRef.current;
+  if(my<yOff||my>yOff+totalBarsH)return;
+  const row=Math.floor((my-yOff)/bh);
+  const bin=nBins-1-row;
+  if(bin>=0&&bin<nBins)onIntervalClick(bin*binSize,(bin+1)*binSize);
+};
+
+return(<div ref={pRef} style={{width:"100%",height:"100%",cursor:"pointer"}}>
+  <canvas ref={cRef} style={{display:"block"}} onClick={handleClick}/>
+</div>);}
+
+function CompChart({places,meta}){
+const cRef=useRef(null);const pRef=useRef(null);
+const[tooltip,setTooltip]=useState(null);
+const chartData=useRef(null);
+useEffect(()=>{if(!places?.length||!pRef.current)return;const c=cRef.current;const rect=pRef.current.getBoundingClientRect();
+const w=rect.width-4,h=rect.height-4;if(w<20||h<20)return;c.width=w*2;c.height=h*2;c.style.width=w+"px";c.style.height=h+"px";
+const ctx=c.getContext("2d");ctx.scale(2,2);ctx.clearRect(0,0,w,h);
+const intervalSize=200;const maxDist=3000;const numIntervals=Math.ceil(maxDist/intervalSize);const cats=Object.keys(CC);
+const counts={};const totals={};
+cats.forEach(cat=>{counts[cat]=new Array(numIntervals).fill(0);totals[cat]=0;});
+places.forEach(d=>{
+  const dist=d[3];if(dist==null)return;
+  const bin=Math.min(Math.floor(dist/intervalSize),numIntervals-1);
+  const cat=d[2];if(counts[cat]){counts[cat][bin]++;totals[cat]++;}
+});
+const allVals=cats.flatMap(cat=>counts[cat]);
+const maxVal=Math.max(...allVals,1);
+const pad={t:8,b:36,l:36,r:6};
+const pw=w-pad.l-pad.r,ph=h-pad.t-pad.b;
+chartData.current={counts,totals,maxVal,pad,pw,ph,w,h,intervalSize,numIntervals,cats};
+ctx.strokeStyle="#333";ctx.lineWidth=0.5;
+const yTicks=5;
+for(let i=0;i<=yTicks;i++){const y=pad.t+ph-i*(ph/yTicks);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();}
+for(let i=0;i<numIntervals;i++){const x=pad.l+i*(pw/(numIntervals-1));ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();}
+cats.forEach(cat=>{
+  const co=CC[cat]||CC.uncategorized;const data=counts[cat];
+  if(!data.some(v=>v>0))return;
+  ctx.strokeStyle=`rgb(${co})`;ctx.lineWidth=2;ctx.beginPath();
+  let started=false;
+  data.forEach((v,i)=>{
+    const x=pad.l+i*(pw/(numIntervals-1));const y=pad.t+ph-(v/maxVal)*ph;
+    if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});
+  ctx.stroke();
+});
+ctx.strokeStyle="#555";ctx.lineWidth=0.8;
+ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+ph);ctx.lineTo(pad.l+pw,pad.t+ph);ctx.stroke();
+ctx.fillStyle="#999";ctx.font="8px system-ui";ctx.textAlign="center";ctx.textBaseline="top";
+[0,750,1500].forEach(v=>{const x=pad.l+(v/(intervalSize*(numIntervals-1)))*pw;ctx.fillText(v,x,pad.t+ph+4);});
+ctx.fillStyle="#999";ctx.font="8px system-ui";ctx.textAlign="right";ctx.textBaseline="middle";
+for(let i=0;i<=yTicks;i++){const val=Math.round(maxVal*i/yTicks);ctx.fillText(val.toString(),pad.l-4,pad.t+ph-i*(ph/yTicks));}
+ctx.fillStyle="#777";ctx.font="8px system-ui";ctx.textAlign="center";ctx.textBaseline="bottom";
+ctx.fillText("Graph Distance from Center (m)",pad.l+pw/2,h-2);
+},[places,meta]);
+
+const handleMouse=(e)=>{
+  if(!chartData.current||!cRef.current)return;
+  const rect=cRef.current.getBoundingClientRect();
+  const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+  const{counts,totals,maxVal,pad,pw,ph,numIntervals,cats}=chartData.current;
+  const col=Math.round((mx-pad.l)/(pw/(numIntervals-1)));
+  if(col<0||col>=numIntervals){setTooltip(null);return;}
+  let best=null,bestDist=20;
+  cats.forEach(cat=>{
+    const v=counts[cat][col];
+    const ly=pad.t+ph-(v/maxVal)*ph;
+    const d=Math.abs(my-ly);
+    if(d<bestDist&&totals[cat]>0){bestDist=d;best=cat;}
+  });
+  if(best){
+    const co=CC[best]||CC.uncategorized;
+    setTooltip({x:e.clientX-rect.left+12,y:e.clientY-rect.top-10,cat:best,total:totals[best],val:counts[best][col],color:`rgb(${co})`});
+  }else{setTooltip(null);}
+};
+
+return(<div ref={pRef} style={{width:"100%",height:"100%",position:"relative"}}>
+<canvas ref={cRef} style={{display:"block"}} onMouseMove={handleMouse} onMouseLeave={()=>setTooltip(null)}/>
+{tooltip&&<div style={{position:"absolute",left:tooltip.x,top:tooltip.y,background:"rgba(10,10,11,0.9)",border:"1px solid #333",
+  borderRadius:4,padding:"4px 8px",pointerEvents:"none",zIndex:10,whiteSpace:"nowrap"}}>
+<div style={{fontSize:10,fontWeight:600,color:tooltip.color,textTransform:"capitalize"}}>{tooltip.cat}</div>
+<div style={{fontSize:9,color:"#aaa"}}>Total: {tooltip.total} · Interval: {tooltip.val}</div>
+</div>}
+</div>);}
+
+function CBar({catCount,total}){const entries=Object.entries(catCount||{});const max=Math.max(...entries.map(([,v])=>v),1);
+return(<div style={{display:"flex",flexDirection:"column",gap:2}}>
+{entries.map(([cat,n])=>{const co=CC[cat]||CC.uncategorized;
+return(<div key={cat} style={{display:"flex",alignItems:"center",gap:4,fontSize:9}}>
+<span style={{width:65,textAlign:"right",color:"#666",flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cat}</span>
+<div style={{flex:1,height:10,background:"#1e1e1f",borderRadius:1,overflow:"hidden"}}><div style={{width:`${(n/max)*100}%`,height:"100%",background:`rgb(${co})`,borderRadius:1}}/></div>
+<span style={{width:28,color:"#555",fontSize:8,textAlign:"right",flexShrink:0}}>{n}</span></div>);})}</div>);}
+
+function Donut({catCount,selCats,onToggle}){
+// Squarified treemap using canvas
+const cRef=useRef(null);const pRef=useRef(null);
+
+// Squarify algorithm
+function squarify(items,x,y,w,h){
+  if(!items.length)return[];
+  const total=items.reduce((s,d)=>s+d.v,0);
+  const rects=[];
+  function layoutRow(row,x,y,w,h,horiz){
+    const rowTotal=row.reduce((s,d)=>s+d.v,0);
+    let pos=horiz?x:y;
+    row.forEach(d=>{
+      const frac=d.v/rowTotal;
+      const rw=horiz?frac*(w):w;
+      const rh=horiz?h:frac*(h);
+      const rx=horiz?pos:x;
+      const ry=horiz?y:pos;
+      rects.push({...d,x:rx,y:ry,w:rw,h:rh});
+      pos+=horiz?rw:rh;
+    });
+  }
+  function worst(row,side){
+    const s=side;const rowTotal=row.reduce((s,d)=>s+d.v,0);
+    const maxV=Math.max(...row.map(d=>d.v));
+    const minV=Math.min(...row.map(d=>d.v));
+    return Math.max((s*s*maxV)/(rowTotal*rowTotal),(rowTotal*rowTotal)/(s*s*minV));
+  }
+  const scale=w*h/total;
+  const scaled=items.map(d=>({...d,v:d.v*scale}));
+  let row=[];let cx=x,cy=y,cw=w,ch=h;
+  scaled.forEach((d,i)=>{
+    const horiz=cw>=ch;const side=horiz?ch:cw;
+    const test=[...row,d];
+    if(!row.length||worst(test,side)<=worst(row,side)){
+      row.push(d);
+    } else {
+      const rowTotal=row.reduce((s,d)=>s+d.v,0);
+      const rowSide=rowTotal/(horiz?ch:cw);
+      layoutRow(row,cx,cy,horiz?rowSide:cw,horiz?ch:rowSide,horiz);
+      if(horiz){cx+=rowSide;cw-=rowSide;}else{cy+=rowSide;ch-=rowSide;}
+      row=[d];
+    }
+  });
+  if(row.length){
+    const horiz=cw>=ch;
+    layoutRow(row,cx,cy,cw,ch,horiz);
+  }
+  return rects;
+}
+
+useEffect(()=>{
+  const entries=Object.entries(catCount||{}).filter(([,v])=>v>0)
+    .sort((a,b)=>b[1]-a[1]);
+  if(!entries.length||!pRef.current)return;
+  const rect=pRef.current.getBoundingClientRect();
+  const w=rect.width,h=rect.height;
+  if(w<10||h<10)return;
+  const c=cRef.current;c.width=w*2;c.height=h*2;c.style.width=w+"px";c.style.height=h+"px";
+  const ctx=c.getContext("2d");ctx.scale(2,2);
+  const total=entries.reduce((s,[,v])=>s+v,0);
+  const items=entries.map(([cat,v])=>({cat,v,n:v,co:CC[cat]||CC.uncategorized}));
+  const rects=squarify(items,0,0,w,h);
+  rectsRef.current=rects;
+  rects.forEach(r=>{
+    const active=!selCats||selCats.has(r.cat);
+    ctx.fillStyle=active?`rgba(${r.co},0.75)`:`rgba(${r.co},0.15)`;
+    ctx.fillRect(r.x+0.5,r.y+0.5,r.w-1,r.h-1);
+    ctx.strokeStyle=active?"rgba(0,0,0,0.4)":"rgba(0,0,0,0.15)";ctx.lineWidth=0.5;
+    ctx.strokeRect(r.x+0.5,r.y+0.5,r.w-1,r.h-1);
+    // Label if big enough
+    const minDim=Math.min(r.w,r.h);
+    if(minDim>18){
+      const fs=Math.max(7,Math.min(11,minDim*0.18));
+      ctx.fillStyle=active?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.3)";
+      ctx.font=`600 ${fs}px system-ui`;
+      ctx.textAlign="center";ctx.textBaseline="middle";
+      const label=r.cat.length>10&&r.w<60?r.cat.slice(0,8)+"…":r.cat;
+      ctx.fillText(label,r.x+r.w/2,r.y+r.h/2-(minDim>28?fs*0.6:0));
+      if(minDim>28){
+        ctx.font=`${Math.max(6,fs*0.85)}px system-ui`;
+        ctx.fillStyle=active?"rgba(255,255,255,0.6)":"rgba(255,255,255,0.2)";
+        ctx.fillText(r.n,r.x+r.w/2,r.y+r.h/2+fs*0.7);
+      }
+    }
+  });
+},[catCount,selCats]);
+const rectsRef=useRef([]);
+const handleClick=(e)=>{
+  if(!onToggle||!cRef.current)return;
+  const rect=cRef.current.getBoundingClientRect();
+  const scaleX=cRef.current.width/2/rect.width;
+  const scaleY=cRef.current.height/2/rect.height;
+  const mx=(e.clientX-rect.left);
+  const my=(e.clientY-rect.top);
+  const hit=rectsRef.current.find(r=>mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h);
+  if(hit)onToggle(hit.cat);
+};
+return(<div ref={pRef} style={{width:"100%",height:"100%"}}>
+  <canvas ref={cRef} style={{display:"block",cursor:"pointer"}} onClick={handleClick}/>
+</div>);}
+
+function Stats({meta,total,catCount,slug,manifest}){const s=meta.stats;
+const catVals=Object.values(catCount||{});
+const totalC=catVals.reduce((a,b)=>a+b,0);
+const activeCats=catVals.filter(n=>n>0).length;
+let shannon=0;
+if(totalC>0)catVals.forEach(n=>{if(n>0){const p=n/totalC;shannon-=p*Math.log(p);}});
+const maxShannon=Math.log(activeCats||1);
+const evenness=maxShannon>0?shannon/maxShannon:0;
+const diversity=(evenness*Math.sqrt(totalC/100)*(activeCats/16)).toFixed(2);
+const directness=s.avgCircuity?(100/s.avgCircuity).toFixed(1)+"%":"—";
+const top4=Object.entries(catCount||{}).sort((a,b)=>b[1]-a[1]).slice(0,4);
+
+const Row=({label,value,pct})=>(<div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",paddingBottom:1,marginBottom:1}}>
+<div style={{fontSize:11,color:"#888"}}>{label}</div>
+<div style={{display:"flex",alignItems:"baseline",gap:6}}>
+  {pct!==null&&pct!==undefined&&<span style={{fontSize:8,color:pct<=25?"#4a9eff":pct>=75?"#666":"#555",fontWeight:600}}>{pctLabel(pct)}</span>}
+  <div style={{fontSize:13,fontWeight:600,color:"#ddd",fontFamily:"'Courier New',monospace"}}>{value??"—"}</div>
+</div></div>);
+const Section=({title,children})=>(<div style={{marginBottom:4}}>
+<div style={{fontSize:10,fontWeight:700,color:"#555",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:1,borderBottom:"1px solid #1e1e1f",paddingBottom:1}}>{title}</div>
+{children}</div>);
+
+return(<div style={{display:"flex",flexDirection:"column",gap:1,height:"100%",overflow:"hidden"}}>
+{meta.collectionLabel&&<div style={{fontSize:9,color:"#444",fontStyle:"italic",marginBottom:3}}>Data collected: {meta.collectionLabel}</div>}
+<Section title="Urban Activity">
+<Row label="Number of Places" value={total} pct={pctRank(slug,"places",manifest)}/>
+<Row label="Active Categories" value={activeCats+" / 16"}/>
+<Row label="Diversity Index" value={diversity} pct={pctRank(slug,"diversity",manifest)}/>
+<Row label="Median Walking Dist." value={s.medianDistGraph?Math.round(s.medianDistGraph)+"m":"—"} pct={pctRank(slug,"medianDist",manifest,true)}/>
+<Row label="Built Area Ratio" value={s.buildingGroundProportion?.toFixed(4)}/>
+</Section>
+<Section title="Street Network">
+<Row label="Intersections" value={s.numberOfIntersections?.toLocaleString()}/>
+<Row label="Street Connectivity" value={s.avgEdgesPerNode?.toFixed(2)}/>
+<Row label="Avg Block Length" value={s.avgEdgeLength?s.avgEdgeLength.toFixed(1)+"m":"—"}/>
+<Row label="Path Directness" value={directness}/>
+</Section>
+<Section title="Predominant Activity">
+{top4.map(([cat,n])=>{const co=CC[cat]||CC.uncategorized;
+return(<div key={cat} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:1}}>
+<div style={{display:"flex",alignItems:"center",gap:4}}>
+<div style={{width:5,height:5,borderRadius:"50%",background:`rgb(${co})`,flexShrink:0}}/>
+<span style={{fontSize:11,color:"#aaa",textTransform:"capitalize"}}>{cat}</span></div>
+<span style={{fontSize:13,fontWeight:600,color:"#ddd",fontFamily:"'Courier New',monospace"}}>{n}</span></div>);})}
+</Section>
+</div>);}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+
+
+</script>
+</body>
+</html>
