@@ -4,104 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Stadia Urban Observatory</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.1/maplibre-gl.css">
 <style>
-:root{
-  --bg:#1A1D21;
-  --surface:#25282C;
-  --surface2:#2A2D31;
-  --border:#3A3F44;
-  --teal:#5CB8A7;
-  --teal-dim:rgba(92,184,167,0.15);
-  --teal-border:rgba(92,184,167,0.35);
-  --text:#E0E6EB;
-  --text-muted:#8F97A0;
-  --text-dim:#4a5058;
-  --font:'Inter',system-ui,sans-serif;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{overflow:hidden;height:100%;background:var(--bg)}
-#root{height:100vh;display:flex;flex-direction:column;overflow:hidden}
-
-/* Scrollbars */
-::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-
-/* MapLibre */
+*{margin:0;padding:0;box-sizing:border-box}html,body{overflow-x:hidden}
 .maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{display:none!important}
 .maplibregl-popup-content{background:#1a1a1b!important;color:#ddd!important;border-radius:6px!important;padding:8px 10px!important;box-shadow:0 4px 20px rgba(0,0,0,0.5)!important}
 .maplibregl-popup-tip{border-top-color:#1a1a1b!important}
-
-/* Lightbox */
-.lightbox-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;background:rgba(10,10,11,0.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center}
+.lightbox-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;background:rgba(10,10,11,0.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center}
 .lightbox-content{width:90vw;height:88vh;border-radius:10px;overflow:hidden;border:1px solid #2a2a2b;position:relative}
 .lightbox-close{position:absolute;top:10px;right:14px;z-index:10;background:rgba(10,10,11,0.7);border:1px solid #333;border-radius:4px;color:#aaa;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit}
 .lightbox-title{position:absolute;top:10px;left:14px;z-index:10;background:rgba(10,10,11,0.7);border-radius:4px;padding:4px 10px;font-size:11px;color:#888;font-weight:600}
-
-/* Expand button */
 .expand-btn{position:absolute;top:6px;right:6px;z-index:5;background:rgba(10,10,11,0.6);border:1px solid #333;border-radius:3px;color:#888;padding:2px 6px;font-size:9px;cursor:pointer;font-family:inherit;opacity:0;transition:opacity 0.2s}
 .map-panel:hover .expand-btn{opacity:1}
-
-/* Tooltip */
 .pnl-tooltip{position:absolute;top:100%;left:0;z-index:200;background:rgba(10,10,11,0.95);border:1px solid #2a2a2b;border-radius:6px;padding:8px 12px;font-size:10px;color:#888;line-height:1.5;max-width:260px;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity 0.15s,transform 0.15s;white-space:normal;font-weight:400;box-shadow:0 4px 20px rgba(0,0,0,0.6)}
 .pnl-title-wrap{position:relative;display:inline-block;cursor:default}
 .pnl-title-wrap:hover .pnl-tooltip{opacity:1;transform:translateY(2px)}
-
-/* Sidebar */
-.sidebar{width:56px;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:0;flex-shrink:0;z-index:10}
-.sidebar-tab{width:100%;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border:none;background:transparent;color:var(--text-dim);transition:all 0.15s;position:relative;border-left:3px solid transparent;font-family:var(--font)}
-.sidebar-tab:hover{color:var(--text-muted);background:rgba(255,255,255,0.03)}
-.sidebar-tab.active{color:var(--teal);background:var(--teal-dim);border-left-color:var(--teal)}
-.sidebar-tab svg{width:18px;height:18px;flex-shrink:0}
-.sidebar-tab-label{font-size:8px;letter-spacing:0.3px;font-weight:500;text-transform:uppercase}
-.sidebar-divider{width:32px;height:1px;background:var(--border);margin:4px 0;flex-shrink:0}
-
-/* Header */
-.app-header{height:44px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;justify-content:space-between;flex-shrink:0;z-index:20}
-.app-header-title{font-size:14px;font-weight:700;color:var(--text);letter-spacing:-0.3px;font-family:var(--font)}
-.app-header-sub{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:1px}
-.app-header-links{display:flex;gap:16px}
-.app-header-links a{font-size:11px;color:var(--text-muted);text-decoration:none;font-family:var(--font)}
-.app-header-links a:hover{color:var(--text)}
-
-/* Body layout */
-.app-body{flex:1;display:flex;overflow:hidden;min-height:0}
-.app-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;min-width:0}
-
-/* Map screen */
-.map-screen{flex:1;position:relative;overflow:hidden}
-
-/* Dashboard screen */
-.dash-screen{flex:1;display:flex;overflow:hidden;min-height:0;background:var(--bg)}
-.dash-center{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;min-width:0;padding:8px 8px 8px 8px;gap:6px}
-.dash-right{width:200px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-
-/* Filter bar */
-.filter-bar{display:flex;align-items:center;gap:10px;padding:5px 8px;background:var(--surface);border-radius:6px;flex-shrink:0;border:1px solid var(--border)}
-
-/* Panel */
-.dash-panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
-.dash-panel-title{padding:5px 8px;border-bottom:1px solid var(--border);font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0}
-
-/* Right panel */
-.right-section{padding:8px 10px;border-bottom:1px solid var(--border)}
-.right-section:last-child{border-bottom:none}
-.right-section-title{font-size:8px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
-.metric-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px}
-.metric-label{font-size:10px;color:var(--text-muted)}
-.metric-value{font-size:11px;font-weight:600;color:var(--text);font-family:'Courier New',monospace}
-.metric-pct{font-size:8px;font-weight:600;color:var(--text-dim);margin-right:4px}
-
-/* Placeholder tab content */
-.tab-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-dim)}
-.tab-placeholder-icon{font-size:32px;opacity:0.3}
-.tab-placeholder-title{font-size:14px;font-weight:600;color:var(--text-muted)}
-.tab-placeholder-sub{font-size:11px;color:var(--text-dim);text-align:center;max-width:280px;line-height:1.6}
-
-/* Onboarding */
 .ob-card{position:fixed;bottom:80px;right:24px;width:280px;background:rgba(14,14,15,0.95);border:1px solid #2a2a2b;border-radius:12px;padding:18px 22px;backdrop-filter:blur(20px);box-shadow:0 8px 40px rgba(0,0,0,0.6);z-index:10000;pointer-events:all}
 .ob-card.ob-in{animation:obSlideIn 0.45s cubic-bezier(0.34,1.2,0.64,1) forwards}
 .ob-card.ob-out{animation:obSlideOut 0.3s ease-in forwards}
@@ -112,75 +29,17 @@ html,body{overflow:hidden;height:100%;background:var(--bg)}
 .ob-body{font-size:11px;color:#666;line-height:1.6;margin-bottom:14px}
 .ob-dots{display:flex;gap:5px;align-items:center;margin-bottom:14px}
 .ob-dot{width:5px;height:5px;border-radius:50%;background:#2a2a2b;transition:background 0.2s}
-.ob-dot.active{background:var(--teal)}
+.ob-dot.active{background:#4a9eff}
 .ob-actions{display:flex;align-items:center;justify-content:space-between}
-.ob-btn{background:var(--teal);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:7px 16px;cursor:pointer;font-family:inherit;transition:background 0.15s}
-.ob-btn:hover{background:#4da898}
+.ob-btn{background:#4a9eff;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:7px 16px;cursor:pointer;font-family:inherit;transition:background 0.15s}
+.ob-btn:hover{background:#3a8eef}
 .ob-skip{background:none;border:none;color:#444;font-size:10px;cursor:pointer;font-family:inherit;padding:0}
 .ob-skip:hover{color:#666}
-
-/* ESC toast */
 .esc-toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);animation:toastIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;z-index:9999;pointer-events:none}
 .esc-toast.out{animation:toastOut 0.4s ease-in forwards}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 @keyframes toastOut{from{opacity:1;transform:translateX(-50%) translateY(0)}to{opacity:0;transform:translateX(-50%) translateY(8px)}}
-@keyframes kbdPulse{0%,100%{box-shadow:0 0 0 0 rgba(92,184,167,0.4)}50%{box-shadow:0 0 0 6px rgba(92,184,167,0)}}
-
-/* Range input */
-input[type=range]{accent-color:var(--teal);height:3px;cursor:pointer}
-
-/* Category pill */
-.cat-pill{font-size:8px;padding:2px 6px;border-radius:3px;cursor:pointer;font-family:inherit;transition:all 0.1s;border:1px solid transparent}
-
-/* Country panel */
-.country-panel{position:absolute;top:10px;right:10px;z-index:100;width:210px;max-height:calc(100vh - 100px);display:flex;flex-direction:column;background:rgba(26,29,33,0.96);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:8px;overflow:hidden}
-.country-list-btn{width:100%;background:transparent;border:none;border-bottom:1px solid rgba(58,63,68,0.5);padding:6px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-align:left;transition:background 0.15s;font-family:var(--font)}
-.country-list-btn:hover{background:rgba(255,255,255,0.04)}
-
-/* Landing page */
-.landing-screen{flex:1;overflow-y:auto;overflow-x:hidden;background:#0d0f10;font-family:'Inter',system-ui,sans-serif;}
-.landing-hero{position:relative;min-height:92vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 24px 80px;overflow:hidden;}
-.landing-hero-bg{position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,15,16,0.55) 0%,rgba(13,15,16,0.75) 60%,#0d0f10 100%),url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1600&q=80&auto=format') center/cover no-repeat;z-index:0;}
-.landing-grid-lines{position:absolute;inset:0;z-index:0;opacity:0.18;background-image:linear-gradient(rgba(92,184,167,0.4) 1px,transparent 1px),linear-gradient(90deg,rgba(92,184,167,0.4) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 70% 70% at 50% 60%,black 20%,transparent 80%);}
-.landing-hero-content{position:relative;z-index:1;max-width:720px;}
-.landing-eyebrow{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--teal);margin-bottom:24px;opacity:0.9;}
-.landing-h1{font-size:clamp(32px,5vw,58px);font-weight:400;color:#e8edf0;line-height:1.12;letter-spacing:-1px;margin-bottom:16px;}
-.landing-h1 em{font-style:italic;color:var(--teal);}
-.landing-subtitle{font-family:'DM Sans',sans-serif;font-size:16px;color:#7a8a92;line-height:1.6;max-width:520px;margin:0 auto 40px;}
-.landing-cta{display:inline-flex;align-items:center;gap:10px;background:var(--teal);color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:13px 28px;border-radius:6px;border:none;cursor:pointer;letter-spacing:0.2px;transition:background 0.2s,transform 0.15s;text-decoration:none;}
-.landing-cta:hover{background:#4da898;transform:translateY(-1px);}
-.landing-cta svg{transition:transform 0.2s;}
-.landing-cta:hover svg{transform:translateX(3px);}
-.landing-stats{display:flex;gap:48px;justify-content:center;margin-top:64px;position:relative;z-index:1;}
-.landing-stat{text-align:center;}
-.landing-stat-n{font-size:28px;font-weight:400;color:#e8edf0;letter-spacing:-1px;}
-.landing-stat-n span{color:var(--teal);}
-.landing-stat-l{font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#4a5560;margin-top:4px;}
-.landing-divider{width:1px;background:linear-gradient(to bottom,transparent,rgba(92,184,167,0.2),transparent);align-self:stretch;}
-
-.landing-section{padding:72px 40px;max-width:900px;margin:0 auto;}
-.landing-section-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--teal);margin-bottom:12px;}
-.landing-section-title{font-size:clamp(22px,3vw,32px);font-weight:400;color:#d0d8dc;letter-spacing:-0.5px;margin-bottom:10px;}
-.landing-section-body{font-family:'DM Sans',sans-serif;font-size:14px;color:#5a6870;line-height:1.7;max-width:560px;margin-bottom:40px;}
-
-.landing-4d-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-.landing-4d-card{background:#131618;border:1px solid #1e2427;border-radius:8px;padding:20px 18px;transition:border-color 0.2s,background 0.2s;}
-.landing-4d-card:hover{border-color:rgba(92,184,167,0.3);background:#161a1c;}
-.landing-4d-icon{color:var(--teal);margin-bottom:14px;opacity:0.85;}
-.landing-4d-name{font-size:14px;font-weight:400;color:#c8d4d8;margin-bottom:6px;letter-spacing:-0.2px;}
-.landing-4d-desc{font-family:'DM Sans',sans-serif;font-size:11px;color:#4a5a62;line-height:1.6;}
-
-.landing-impact{background:#0f1315;border-top:1px solid #1a1e21;border-bottom:1px solid #1a1e21;padding:72px 40px;}
-.landing-impact-inner{max-width:900px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
-.landing-impact-text{}
-.landing-outline-btn{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#7a8a92;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:10px 20px;border-radius:6px;border:1px solid #2a3338;cursor:pointer;letter-spacing:0.2px;transition:border-color 0.2s,color 0.2s;margin-top:24px;}
-.landing-outline-btn:hover{border-color:rgba(92,184,167,0.4);color:#9ab4bc;}
-
-.landing-footer{padding:24px 40px;max-width:900px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #161a1c;}
-.landing-footer-copy{font-family:'DM Sans',sans-serif;font-size:10px;color:#2e3840;letter-spacing:0.5px;}
-.landing-footer-links{display:flex;gap:20px;}
-.landing-footer-links a{font-family:'DM Sans',sans-serif;font-size:10px;color:#2e3840;text-decoration:none;letter-spacing:0.5px;transition:color 0.2s;}
-.landing-footer-links a:hover{color:#5a6870;}
+@keyframes kbdPulse{0%,100%{box-shadow:0 0 0 0 rgba(74,158,255,0.4)}50%{box-shadow:0 0 0 6px rgba(74,158,255,0)}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -848,7 +707,7 @@ function buildCountryIndex(stadiums,sc){
 const CC={auto:[166,206,227],education:[31,120,180],financial:[178,223,138],food:[51,160,44],health:[251,154,153],industrial:[125,125,125],institution:[227,26,28],leisure:[253,191,111],lodging:[255,127,0],outdoor:[176,40,177],religion:[202,178,214],residential:[251,251,1],retail:[106,61,154],service:[255,255,153],transportation:[177,89,40],uncategorized:[125,125,125]};
 const EC={"FIFA World Cup":[220,50,50],"Summer Olympic Games":[240,200,40],"UEFA Euro Cup":[40,180,80]};
 
-const BG="#1A1D21";
+const BG="#2c353c";
 
 function makeYlOrRd(npts){
   const scale=Math.min(1.0, Math.max(0.2, (npts-30)/1500));
@@ -874,18 +733,13 @@ function makeYlOrRd(npts){
     return[r,g,b,alpha];
   };
 }
-function GMap({stadiums,sel,selCountry,onCountrySelect,onSelect,mapRef,countries,pendingFlyRef}){
+function GMap({stadiums,sel,selCountry,onCountrySelect,onSelect,mapRef,countries}){
 const cRef=useRef(null);const[loaded,setLoaded]=useState(false);
 useEffect(()=>{
   if(!cRef.current)return;
-  const map=new maplibregl.Map({container:cRef.current,style:{version:8,sources:{"esri-sat":{type:"raster",tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],tileSize:256,attribution:"Esri"},"esri-labels":{type:"raster",tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],tileSize:256}},layers:[{id:"esri-sat",type:"raster",source:"esri-sat"},{id:"esri-labels",type:"raster",source:"esri-labels"}]},center:[20,15],zoom:1.5,minZoom:1,maxZoom:18,attributionControl:false});
+  const map=new maplibregl.Map({container:cRef.current,style:"https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",center:[20,15],zoom:1.5,minZoom:1,maxZoom:18,attributionControl:false});
   mapRef.current=map;
   map.on("load",()=>{
-    // If returning from dashboard, fly to stored country position
-    if(pendingFlyRef&&pendingFlyRef.current){
-      map.flyTo(pendingFlyRef.current);
-      pendingFlyRef.current=null;
-    }
     const COLORS=["#4a9eff","#dc3232","#28b428","#f0c828","#b450dc","#ff8c32","#32dcc8","#ff6496","#64c864","#c89632","#5096ff","#ff5050"];
     function cidx(n){let h=0;for(let i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))&0xfffffff;return Math.abs(h)%COLORS.length;}
     const cl=Object.values(countries);
@@ -955,147 +809,16 @@ useEffect(()=>{
 return <div ref={cRef} style={{width:"100%",height:"100%"}}/>;
 }
 
-function LandingScreen({onEnter}){
-return(
-<div className="landing-screen">
-
-  {/* HERO */}
-  <div className="landing-hero">
-    <div className="landing-hero-bg"/>
-    <div className="landing-grid-lines"/>
-    <div className="landing-hero-content">
-      <div className="landing-eyebrow">Urban Science · Spatial Analytics · Global Stadiums</div>
-      <h1 className="landing-h1">Unveiling the Cities Around<br/><em>Major Stadiums</em></h1>
-      <p className="landing-subtitle">Every stadium reshapes its surroundings. This observatory measures how — mapping density, diversity, and walkability across 231 venues in 57 countries.</p>
-      <button className="landing-cta" onClick={onEnter}>
-        Explore the Global Map
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </button>
-    </div>
-    <div className="landing-stats">
-      <div className="landing-stat">
-        <div className="landing-stat-n">2<span>3</span>1</div>
-        <div className="landing-stat-l">Stadiums</div>
-      </div>
-      <div className="landing-divider"/>
-      <div className="landing-stat">
-        <div className="landing-stat-n">5<span>7</span></div>
-        <div className="landing-stat-l">Countries</div>
-      </div>
-      <div className="landing-divider"/>
-      <div className="landing-stat">
-        <div className="landing-stat-n"><span>3</span></div>
-        <div className="landing-stat-l">Competitions</div>
-      </div>
-      <div className="landing-divider"/>
-      <div className="landing-stat">
-        <div className="landing-stat-n">4<span>-D</span></div>
-        <div className="landing-stat-l">Urban Model</div>
-      </div>
-    </div>
-  </div>
-
-  {/* 4-D MODEL */}
-  <div style={{background:"#0f1315",borderTop:"1px solid #161a1d",borderBottom:"1px solid #161a1d"}}>
-    <div className="landing-section">
-      <div className="landing-section-label">Methodology</div>
-      <div className="landing-section-title">The 4-D Urban Model</div>
-      <div className="landing-section-body">A spatial framework developed to assess how effectively a stadium generates dynamic urban life in its immediate surroundings — beyond game day.</div>
-      <div className="landing-4d-grid">
-        <div className="landing-4d-card">
-          <div className="landing-4d-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          </div>
-          <div className="landing-4d-name">Density</div>
-          <div className="landing-4d-desc">How many places exist around the stadium and where do they cluster most intensely?</div>
-        </div>
-        <div className="landing-4d-card">
-          <div className="landing-4d-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/><line x1="6" y1="6" x2="10" y2="10"/><line x1="18" y1="6" x2="14" y2="10"/><line x1="6" y1="18" x2="10" y2="14"/><line x1="18" y1="18" x2="14" y2="14"/></svg>
-          </div>
-          <div className="landing-4d-name">Diversity</div>
-          <div className="landing-4d-desc">How varied are the uses and socioeconomic activities within the stadium's street network?</div>
-        </div>
-        <div className="landing-4d-card">
-          <div className="landing-4d-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          </div>
-          <div className="landing-4d-name">Distance</div>
-          <div className="landing-4d-desc">How far do people walk to access places? How direct and walkable are the surrounding streets?</div>
-        </div>
-        <div className="landing-4d-card">
-          <div className="landing-4d-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          </div>
-          <div className="landing-4d-name">Destination</div>
-          <div className="landing-4d-desc">Does the stadium become a true urban destination — active beyond match days and anchored in city life?</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {/* IMPACT SECTION */}
-  <div className="landing-impact">
-    <div className="landing-impact-inner">
-      <div className="landing-impact-text">
-        <div className="landing-section-label">Research Context</div>
-        <div className="landing-section-title">Beyond the Event</div>
-        <div className="landing-section-body" style={{marginBottom:0}}>Stadiums built for World Cups, Olympics, and UEFA Championships represent some of the largest urban investments of the 21st century. Yet their legacy remains largely unmeasured. This platform quantifies that legacy — comparing outcomes across competitions, continents, and urban contexts.</div>
-        <button className="landing-outline-btn">
-          Learn More About Our Methodology
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </button>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        {[["FIFA World Cup","17 editions analyzed"],["Summer Olympics","8 host cities"],["UEFA Championship","6 host nations"],["Urban Legacy","231 venues mapped"]].map(([t,s])=>(
-          <div key={t} style={{background:"#131618",border:"1px solid #1e2427",borderRadius:8,padding:"18px 16px"}}>
-            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:"1.5px",textTransform:"uppercase",color:"var(--teal)",marginBottom:6,opacity:0.7}}>{t}</div>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9aa2"}}>{s}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-
-  {/* FOOTER */}
-  <div className="landing-footer">
-    <div className="landing-footer-copy">© 2024 Stadia Urban Observatory · PhD Research · KU School of Architecture and Design</div>
-    <div className="landing-footer-links">
-      <a href="#">About</a>
-      <a href="#">Data</a>
-      <a href="#" onClick={e=>{e.preventDefault();onEnter();}}>Launch App</a>
-    </div>
-  </div>
-
-</div>
-);
-}
-
 function App(){
 const[sel,setSel]=useState(null);const[sd,setSd]=useState(null);
 const[lightbox,setLightbox]=useState(null);
 const[selCountry,setSelCountry]=useState(null);
-const[activeTab,setActiveTab]=useState("landing");
-const manifest=IX;
 const COUNTRIES=React.useMemo(()=>buildCountryIndex(IX,SC),[]);
 const[escUsed,setEscUsed]=useState(()=>localStorage.getItem('escUsed')==='1');
 const[obStep,setObStep]=useState(()=>localStorage.getItem('onboardingSeen')==='1'?null:0);
 
 const[escToast,setEscToast]=useState(false);
-const dRef=useRef(null);const mapRef=useRef(null);const topRef=useRef(null);const pendingFlyRef=useRef(null);
-
-const tryScrollToDash=useCallback(()=>{
-  const el=dRef.current;
-  if(!el) return false;
-  // If the page isn't taller than the viewport yet, scrolling can't happen.
-  const canScroll=document.documentElement.scrollHeight>window.innerHeight+20;
-  if(!canScroll) return false;
-  try{el.scrollIntoView({behavior:'smooth',block:'start'});}catch(e){
-    const y=el.getBoundingClientRect().top+window.scrollY;
-    window.scrollTo({top:y,behavior:'smooth'});
-  }
-  return true;
-},[]);
+const dRef=useRef(null);const mapRef=useRef(null);const topRef=useRef(null);
 
 const obDone=useCallback(()=>{setObStep(null);localStorage.setItem('onboardingSeen','1');},[]);
 
@@ -1113,16 +836,12 @@ const handleCountrySelect=useCallback((country)=>{
 const handleSelect=useCallback((s)=>{
   setObStep(s2=>s2===1?2:s2);
   setSel(s);
-  const FLY_MS=5000;
-  if(mapRef.current)mapRef.current.flyTo({center:[s.lng,s.lat],zoom:15,duration:FLY_MS});
-
-  // Load data silently in background — stay on map until user clicks "View Dashboard →"
-  loadStadium(s.slug).then(d=>{
-    if(!d) return;
-    setSd(d);
-    // Do NOT auto-navigate — user must click "View Dashboard →"
-  }).catch(()=>{/* ignore */});
-
+  if(mapRef.current)mapRef.current.flyTo({center:[s.lng,s.lat],zoom:15,duration:5000});
+  loadStadium(s.slug).then(d=>{ if(d) setSd(d); });
+  setTimeout(()=>{
+    const el=dRef.current;
+    if(el){const y=el.getBoundingClientRect().top+window.scrollY;window.scrollTo({top:y,behavior:'smooth'});}
+  },6500);
   setTimeout(()=>setObStep(s=>s===2?null:s),12000);
   setTimeout(()=>{if(localStorage.getItem('onboardingSeen')!=='1')localStorage.setItem('onboardingSeen','1');},12000);
   setEscToast(false);
@@ -1156,9 +875,7 @@ useEffect(()=>{const handler=(e)=>{if(e.key==="Escape"){
   window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);},[lightbox,handleBack]);
 
 return(
-<div style={{height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--font)"}}>
-
-{/* LIGHTBOX */}
+<div style={{background:BG,color:"#ddd",fontFamily:"'Helvetica Neue',system-ui,sans-serif"}}>
 {lightbox&&<div className="lightbox-overlay" onClick={(e)=>{if(e.target===e.currentTarget)setLightbox(null);}}>
 <div className="lightbox-content">
 <div className="lightbox-title">{lightbox.title}</div>
@@ -1167,243 +884,39 @@ return(
 {lightbox.type==="density"&&<DensityMap density={lightbox.density} meta={lightbox.meta}/>}
 </div></div>}
 
-{/* HEADER */}
-<header className="app-header">
-  <div>
-    <div className="app-header-title">Stadia Urban Observatory</div>
-    <div className="app-header-sub">Urban analytics · major event stadiums</div>
-  </div>
-  <nav className="app-header-links">
-    <a href="#">About</a>
-    <a href="#">Data</a>
-  </nav>
+<div ref={topRef} style={{height:"100vh",display:"flex",flexDirection:"column"}}>
+{false&&<div style={{position:"absolute",inset:0,zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",background:"#0f1011"}}>
+  <div style={{color:"#444",fontSize:12,letterSpacing:"2px",textTransform:"uppercase"}}>Loading stadiums…</div>
+</div>}
+<header style={{padding:"16px 24px 10px",display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexShrink:0}}>
+<div><h1 style={{margin:0,fontSize:24,fontWeight:700,color:"#fff",letterSpacing:"-0.5px"}}>Stadia Urban Observatory</h1>
+<p style={{margin:"2px 0 0",fontSize:11,color:"#555",letterSpacing:"0.8px",textTransform:"uppercase"}}>Urban analytics around major event stadiums</p></div>
+<div style={{display:"flex",gap:16,fontSize:10,color:"#777",paddingBottom:2}}>
+<div style={{fontSize:10,color:"#444",fontStyle:"italic"}}>Circles colored by country</div></div>
 </header>
+<div style={{flex:1,position:"relative"}}>
+<GMap stadiums={IX} sel={sel} selCountry={selCountry}
+  onCountrySelect={handleCountrySelect} onSelect={handleSelect} mapRef={mapRef} countries={COUNTRIES}/>
 
-{/* BODY */}
-<div className="app-body">
-
-  {/* LANDING SCREEN */}
-  {activeTab==="landing"&&<LandingScreen onEnter={()=>setActiveTab("map")}/>}
-
-  {/* ICON SIDEBAR — hidden on landing */}
-  {activeTab!=="landing"&&<aside className="sidebar">
-    {/* Map tab */}
-    <button className={`sidebar-tab${activeTab==="map"?" active":""}`}
-      onClick={()=>{setActiveTab("map");setSel(null);setSd(null);}}
-      title="World Map">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-      </svg>
-    </button>
-
-    <div className="sidebar-divider"/>
-
-    {/* Overview tab */}
-    <button className={`sidebar-tab${activeTab==="overview"?" active":""}`}
-      onClick={()=>sd&&setActiveTab("overview")}
-      title="Overview"
-      style={{opacity:sd?1:0.35,cursor:sd?"pointer":"default"}}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-      </svg>
-      <span className="sidebar-tab-label">Data</span>
-    </button>
-
-    {/* Density tab */}
-    <button className={`sidebar-tab${activeTab==="density"?" active":""}`}
-      onClick={()=>sd&&setActiveTab("density")}
-      title="Density"
-      style={{opacity:sd?1:0.35,cursor:sd?"pointer":"default"}}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
-        <line x1="6" y1="20" x2="6" y2="14"/>
-      </svg>
-      <span className="sidebar-tab-label">Density</span>
-    </button>
-
-    {/* Diversity tab */}
-    <button className={`sidebar-tab${activeTab==="diversity"?" active":""}`}
-      onClick={()=>sd&&setActiveTab("diversity")}
-      title="Diversity"
-      style={{opacity:sd?1:0.35,cursor:sd?"pointer":"default"}}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
-      </svg>
-      <span className="sidebar-tab-label">Diversity</span>
-    </button>
-
-    {/* Distance tab */}
-    <button className={`sidebar-tab${activeTab==="distance"?" active":""}`}
-      onClick={()=>sd&&setActiveTab("distance")}
-      title="Distance"
-      style={{opacity:sd?1:0.35,cursor:sd?"pointer":"default"}}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 6h18M3 12h18M3 18h18"/><line x1="3" y1="6" x2="3" y2="18"/>
-        <line x1="21" y1="6" x2="21" y2="18"/>
-      </svg>
-      <span className="sidebar-tab-label">Distance</span>
-    </button>
-
-    {/* Destination tab */}
-    <button className={`sidebar-tab${activeTab==="destination"?" active":""}`}
-      onClick={()=>sd&&setActiveTab("destination")}
-      title="Destination"
-      style={{opacity:sd?1:0.35,cursor:sd?"pointer":"default"}}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-        <circle cx="12" cy="10" r="3"/>
-      </svg>
-      <span className="sidebar-tab-label">Dest.</span>
-    </button>
-  </aside>}
-
-  {/* MAIN CONTENT — hidden on landing */}
-  {activeTab!=="landing"&&<main className="app-main">
-
-    {/* MAP SCREEN */}
-    <div className="map-screen" style={{display:activeTab==="map"?"flex":"none",flex:1,position:"relative",overflow:"hidden"}}>
-      <GMap stadiums={IX} sel={sel} selCountry={selCountry}
-        onCountrySelect={handleCountrySelect} onSelect={handleSelect} mapRef={mapRef} countries={COUNTRIES} pendingFlyRef={pendingFlyRef}/>
-
-      {/* Country/Stadium panel */}
-      <div className="country-panel">
-        <div style={{padding:"8px 12px 6px",borderBottom:"1px solid var(--border)",flexShrink:0}}>
-          <div style={{fontSize:8,letterSpacing:"1.5px",textTransform:"uppercase",color:"var(--text-dim)",marginBottom:2}}>Countries</div>
-          <div style={{fontSize:10,color:"var(--text-muted)"}}>{Object.keys(COUNTRIES).length} countries · {IX.length} stadiums</div>
-        </div>
-        <div style={{overflowY:"auto",flex:1,padding:"4px 0"}}>
-          {!selCountry&&[...Object.values(COUNTRIES)].sort((a,b)=>b.stadiums.length-a.stadiums.length).map(c=>{
-            const evts=[...new Set(c.stadiums.map(s=>s.event))];
-            const col=EC[evts[0]]||[180,180,180];
-            return(<button key={c.name} className="country-list-btn" onClick={()=>handleCountrySelect(c)}>
-              <span style={{fontSize:11,color:"var(--text)",display:"flex",alignItems:"center",gap:5}}>
-                <span style={{color:`rgb(${col})`,fontSize:7}}>●</span>{c.name}
-              </span>
-              <span style={{fontSize:10,color:"var(--text-dim)",fontFamily:"'Courier New',monospace",flexShrink:0}}>{c.stadiums.length}</span>
-            </button>);
-          })}
-          {selCountry&&<div style={{padding:"4px 0"}}>
-            <button onClick={()=>{setSelCountry(null);setSel(null);setSd(null);if(mapRef.current)mapRef.current.flyTo({center:[20,15],zoom:1.5,duration:2000});}}
-              style={{width:"100%",background:"transparent",border:"none",borderBottom:"1px solid var(--border)",padding:"5px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:6,color:"var(--text-dim)",fontSize:10,textAlign:"left",fontFamily:"var(--font)"}}
-              onMouseEnter={e=>e.currentTarget.style.color="var(--text-muted)"} onMouseLeave={e=>e.currentTarget.style.color="var(--text-dim)"}>
-              ← All countries
-            </button>
-            {(COUNTRIES[selCountry]?.stadiums||[]).map(s=>{
-              const a=sel?.slug===s.slug;
-              const c=EC[s.event]||[180,180,180];
-              return(<button key={s.slug} className="country-list-btn"
-                style={{background:a?`rgba(${c},0.1)`:"transparent"}}
-                onClick={()=>handleSelect(s)}>
-                <span style={{fontSize:11,color:a?`rgb(${c})`:"var(--text)",display:"flex",alignItems:"center",gap:5}}>
-                  <span style={{color:`rgb(${c})`,fontSize:7}}>●</span>{s.name}
-                </span>
-                <span style={{fontSize:9,color:"var(--text-dim)",fontFamily:"'Courier New',monospace"}}>{s.year||""}</span>
-              </button>);
-            })}
-          </div>}
-        </div>
-        {/* CTA when stadium selected */}
-        {sel&&<div style={{padding:"8px 10px",borderTop:"1px solid var(--border)",flexShrink:0}}>
-          <button
-            onClick={()=>{ if(sd) setActiveTab("overview"); }}
-            disabled={!sd}
-            style={{width:"100%",background:sd?"var(--teal)":"#2a2e33",border:"none",borderRadius:6,color:sd?"#fff":"#555",fontSize:11,fontWeight:700,padding:"8px 0",cursor:sd?"pointer":"default",fontFamily:"var(--font)",transition:"background 0.3s, color 0.3s"}}
-            onMouseEnter={e=>{ if(sd) e.currentTarget.style.background="#4da898"; }}
-            onMouseLeave={e=>{ if(sd) e.currentTarget.style.background="var(--teal)"; }}>
-            {sd ? "View Dashboard →" : "Loading data…"}
-          </button>
-        </div>}
-      </div>
-    </div>
-
-    {/* DASHBOARD SCREENS */}
-    {activeTab!=="map"&&sd&&(
-    <div className="dash-screen">
-      <div className="dash-center">
-
-        {/* Stadium name strip */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,paddingBottom:2}}>
-          <div style={{display:"flex",alignItems:"baseline",gap:10}}>
-            <span style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{sd.m.name}</span>
-            <span style={{fontSize:10,color:"var(--text-muted)"}}>{sd.m.event} {sd.m.year}</span>
-            {(()=>{const hl=genHeadline(sd.m.slug,sd.m.name,manifest);return hl?<span style={{fontSize:9,color:"var(--text-dim)",fontStyle:"italic",maxWidth:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{hl}</span>:null;})()}
-          </div>
-          <button
-            onClick={()=>{
-              setSel(null);setSd(null);setActiveTab("map");
-              if(selCountry&&mapRef.current){
-                const c=COUNTRIES[selCountry];
-                if(c){
-                  const lats=c.stadiums.map(s=>s.lat);
-                  const lngs=c.stadiums.map(s=>s.lng);
-                  const spread=Math.max(Math.max(...lats)-Math.min(...lats),Math.max(...lngs)-Math.min(...lngs));
-                  const zoom=spread<0.1?12:spread<0.5?10:spread<1?9:spread<3?7:spread<8?6:spread<15?5:4;
-                  mapRef.current.flyTo({center:[c.lng,c.lat],zoom,duration:1200});
-                }
-              }
-            }}
-            style={{background:"var(--teal)",border:"none",borderRadius:6,color:"#fff",fontSize:11,fontWeight:700,padding:"8px 16px",cursor:"pointer",fontFamily:"var(--font)",transition:"background 0.15s"}}
-            onMouseEnter={e=>e.currentTarget.style.background="#4da898"}
-            onMouseLeave={e=>e.currentTarget.style.background="var(--teal)"}>
-            ← Back to Map
-          </button>
-        </div>
-
-        {/* OVERVIEW TAB */}
-        {activeTab==="overview"&&<DashOverview data={sd} onExpand={setLightbox} manifest={manifest}/>}
-
-        {/* PLACEHOLDER TABS */}
-        {activeTab==="density"&&(
-        <div className="tab-placeholder">
-          <div className="tab-placeholder-icon">▥</div>
-          <div className="tab-placeholder-title">Density Analysis</div>
-          <div className="tab-placeholder-sub">Spatial concentration of places around the stadium. Coming in next development session.</div>
-        </div>)}
-        {activeTab==="diversity"&&(
-        <div className="tab-placeholder">
-          <div className="tab-placeholder-icon">◈</div>
-          <div className="tab-placeholder-title">Diversity Analysis</div>
-          <div className="tab-placeholder-sub">Simpson Diversity Index applied across a computational grid overlay. Coming in next development session.</div>
-        </div>)}
-        {activeTab==="distance"&&(
-        <div className="tab-placeholder">
-          <div className="tab-placeholder-icon">⊹</div>
-          <div className="tab-placeholder-title">Distance Analysis</div>
-          <div className="tab-placeholder-sub">Walking distances from places to the stadium via street network. Coming in next development session.</div>
-        </div>)}
-        {activeTab==="destination"&&(
-        <div className="tab-placeholder">
-          <div className="tab-placeholder-icon">◎</div>
-          <div className="tab-placeholder-title">Destination Analysis</div>
-          <div className="tab-placeholder-sub">Destination variety and range of categories present around the stadium. Coming in next development session.</div>
-        </div>)}
-
-      </div>
-    </div>
-    )}
-
-    {/* No stadium selected yet — show prompt */}
-    {activeTab!=="map"&&!sd&&(
-    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"var(--text-dim)"}}>
-      <div style={{fontSize:28,opacity:0.2}}>◎</div>
-      <div style={{fontSize:13,color:"var(--text-muted)"}}>No stadium selected</div>
-      <button onClick={()=>setActiveTab("map")}
-        style={{background:"var(--teal)",border:"none",borderRadius:6,color:"#fff",fontSize:11,fontWeight:600,padding:"7px 16px",cursor:"pointer",fontFamily:"var(--font)"}}>
-        Go to Map
-      </button>
-    </div>
-    )}
-
-  </main>}
+</div>
+<div style={{padding:"6px 24px 10px",display:"flex",gap:5,flexWrap:"wrap",flexShrink:0}}>
+{!selCountry&&Object.values(COUNTRIES).map(c=>{
+  const evts=[...new Set(c.stadiums.map(s=>s.event))];
+  const col=EC[evts[0]]||[180,180,180];
+  return(<button key={c.name} onClick={()=>handleCountrySelect(c)} style={{background:"#131314",border:"1px solid #1e1e1f",borderRadius:4,padding:"5px 10px",color:"#777",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>
+    <span style={{color:`rgb(${col})`,marginRight:4}}>●</span>{c.name}<span style={{color:"#555",marginLeft:5,fontSize:9}}>{c.stadiums.length} stadiums</span></button>);})}
+{selCountry&&(COUNTRIES[selCountry]?.stadiums||[]).map(s=>{const a=sel?.slug===s.slug;const c=EC[s.event]||[180,180,180];
+return(<button key={s.slug} onClick={()=>handleSelect(s)} style={{background:a?`rgba(${c},0.12)`:"#131314",border:a?`1px solid rgba(${c},0.4)`:"1px solid #1e1e1f",borderRadius:4,padding:"5px 10px",color:a?"#eee":"#777",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>
+<span style={{color:`rgb(${c})`,marginRight:4}}>●</span>{s.name}<span style={{color:"#555",marginLeft:5,fontSize:9}}>{s.places}</span></button>);})}</div>
 </div>
 
-{/* Onboarding */}
-<Onboarding step={obStep} onNext={()=>setObStep(s=>(s===null||s>=2)?null:s+1)} onSkip={obDone}/>
+<div ref={dRef}>{sd?<Dash data={sd} onExpand={setLightbox} manifest={IX}/>:null}</div>
 
-{/* ESC toast */}
-{escToast&&<div className={`esc-toast${escToast==="out"?" out":""}`}>
+<Onboarding step={obStep}
+  onNext={()=>setObStep(s=>(s===null||s>=2)?null:s+1)}
+  onSkip={obDone}/>
+
+{escToast&&<div className={`esc-toast${escToast==='out'?' out':''}`}>
   <div style={{background:"rgba(10,10,11,0.92)",backdropFilter:"blur(16px)",border:"1px solid #2a2a2b",borderRadius:24,padding:"10px 22px",display:"flex",alignItems:"center",gap:12,fontSize:11,color:"#b6bcc2",boxShadow:"0 4px 32px rgba(0,0,0,0.7)"}}>
     <kbd style={{background:"#1a1a1b",border:"1px solid #444",borderBottom:"2px solid #333",borderRadius:5,padding:"4px 10px",fontSize:12,color:"#ccc",fontFamily:"inherit",fontWeight:700,animation:"kbdPulse 1.5s ease infinite"}}>ESC</kbd>
     <span>Press to navigate back between levels</span>
@@ -1436,7 +949,7 @@ function Onboarding({step,onNext,onSkip}){
 }
 
 
-function DashOverview({data,onExpand,manifest}){
+function Dash({data,onExpand,manifest}){
 const{m:meta,p:places,cc:catCount,tp:totalPlaces,den}=data;
 const[maxDist,setMaxDist]=useState(3000);
 const[selCats,setSelCats]=useState(null);
@@ -1483,11 +996,8 @@ const toggleType=(typ)=>{
 const clearTypeFilter=()=>setSelTypes(null);
 
 return(
-<React.Fragment>
-<div style={{flex:1,display:"flex",flexDirection:"row",overflow:"hidden",minHeight:0}}>
-
-{/* LEFT: main content column */}
-<div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0,gap:6}}>
+<div style={{height:"100vh",display:"flex",flexDirection:"row",padding:"10px 16px",gap:8,overflow:"hidden",background:BG}}>
+<div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
 {/* Header */}
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,paddingBottom:4,marginBottom:2}}>
 <h2 style={{margin:0,fontSize:16,fontWeight:700,color:"#fff"}}>Stadia Urban Analysis
@@ -1496,7 +1006,7 @@ return(
 <div style={{display:"flex",gap:14,fontSize:10,color:"#a3aab1"}}><span>{meta.event} {meta.year}</span><span>{meta.latitude.toFixed(4)}°, {meta.longitude.toFixed(4)}°</span></div></div>
 
 {/* FILTER BAR */}
-<div style={{display:"flex",alignItems:"center",gap:16,flexShrink:0,padding:"4px 0 6px",borderBottom:"1px solid #3A3F44",marginBottom:4}}>
+<div style={{display:"flex",alignItems:"center",gap:16,flexShrink:0,padding:"4px 0 6px",borderBottom:"1px solid #1e1e1f",marginBottom:4}}>
 <div style={{display:"flex",alignItems:"center",gap:8}}>
 <span style={{fontSize:9,color:"#666",whiteSpace:"nowrap"}}>Radius</span>
 <input type="range" min={100} max={3000} step={50} value={maxDist} onChange={e=>setMaxDist(Number(e.target.value))}
@@ -1543,61 +1053,75 @@ return(
   </button>
 </div>
 
-<div style={{flex:1,display:"grid",gridTemplateColumns:"2fr 1.2fr 1.3fr",gridTemplateRows:"1.15fr 0.85fr",gap:8,minHeight:0,overflow:"hidden"}}>
+<div style={{flex:1,display:"grid",gridTemplateRows:"1.22fr 24px 1.08fr",gap:0,minHeight:0,overflow:"hidden"}}>
 
-  {/* COL 1 — Places Map spanning both rows, with legend inside at bottom */}
-  <div style={{gridColumn:"1",gridRow:"1 / 3",display:"flex",flexDirection:"column",minHeight:0}}>
-    <div className="map-panel" style={{flex:1,borderRadius:6,overflow:"hidden",position:"relative"}}>
-      <div style={{position:"absolute",top:0,left:0,right:0,padding:"5px 10px",zIndex:2,background:"linear-gradient(to bottom, rgba(44,53,60,0.9) 0%, transparent 100%)"}}><span style={{fontSize:10,fontWeight:600,color:"#888",position:"relative"}} className="pnl-title-wrap">Where are people spending time?<span className="pnl-tooltip">Each dot represents a place from OpenStreetMap, colored by category. The spread and clustering of dots reveals how diverse and dense the urban fabric is around the stadium.</span></span></div>
-      <button className="expand-btn" onClick={()=>onExpand({type:"scatter",title:"Where are people spending time?",places:filtered,meta})}>⛶ Expand</button>
-      <ScatterMap places={filtered} meta={meta}/>
-      {filtered.length===0&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,8,9,0.65)",zIndex:3,padding:12,textAlign:"center"}}><div style={{fontSize:11,color:"#d2d7dc"}}>No places match the current filters.<div style={{fontSize:10,color:"#9ca3aa",marginTop:4}}>Try Reset filters or increase the radius.</div></div></div>}
-      {/* Category legend overlaid at bottom of map */}
-      <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"4px 8px 5px",background:"linear-gradient(to top, rgba(21,22,22,0.92) 0%, transparent 100%)",display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:"1px 4px",zIndex:2}}>
-        {Object.entries(CC).map(([cat,c])=>(<div key={cat} style={{display:"flex",alignItems:"center",gap:2,fontSize:8,color:"#aaa"}}>
-          <div style={{width:5,height:5,borderRadius:"50%",background:`rgb(${c})`,flexShrink:0}}/>
-          <span style={{textTransform:"capitalize",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cat}</span>
-        </div>))}
-      </div>
-    </div>
+{/* ROW 1 — Maps + charts */}
+<div style={{display:"grid",gridTemplateColumns:"1.8fr 1.8fr 0.55fr 0.85fr",gap:8,minHeight:0}}>
+  {/* Places Map */}
+  <div className="map-panel" style={{borderRadius:6,overflow:"hidden",position:"relative"}}>
+    <div style={{position:"absolute",top:0,left:0,right:0,padding:"5px 10px",zIndex:2,background:"linear-gradient(to bottom, rgba(44,53,60,0.9) 0%, transparent 100%)"}}><span style={{fontSize:10,fontWeight:600,color:"#888",position:"relative"}} className="pnl-title-wrap">Where are people spending time?<span className="pnl-tooltip">Each dot represents a place from OpenStreetMap, colored by category. The spread and clustering of dots reveals how diverse and dense the urban fabric is around the stadium.</span></span></div>
+    <button className="expand-btn" onClick={()=>onExpand({type:"scatter",title:"Where are people spending time?",places:filtered,meta})}>⛶ Expand</button>
+    <ScatterMap places={filtered} meta={meta}/>
+    {filtered.length===0&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(8,8,9,0.65)",zIndex:3,padding:12,textAlign:"center"}}><div style={{fontSize:11,color:"#d2d7dc"}}>No places match the current filters.<div style={{fontSize:10,color:"#9ca3aa",marginTop:4}}>Try Reset filters or increase the radius.</div></div></div>}
   </div>
 
-  {/* COL 2 ROW 1 — Stadium Profile */}
-  <div style={{gridColumn:"2",gridRow:"1",minHeight:0,overflow:"hidden"}}>
-    <Pnl t="Stadium Profile" tip="Key urban metrics for this stadium's surroundings — place counts, diversity, street network characteristics and predominant activity types."><Stats meta={meta} total={filtered.length} catCount={filteredCatCount} slug={meta.slug} manifest={IX}/></Pnl>
+  {/* Density Map */}
+  <div className="map-panel" style={{borderRadius:6,overflow:"hidden",position:"relative"}}>
+    <div style={{position:"absolute",top:0,left:0,right:0,padding:"5px 10px",zIndex:2,background:"linear-gradient(to bottom, rgba(44,53,60,0.9) 0%, transparent 100%)"}}><span style={{fontSize:10,fontWeight:600,color:"#888",position:"relative"}} className="pnl-title-wrap">Where does activity concentrate?<span className="pnl-tooltip">A kernel density heatmap showing where places cluster most intensely. Red areas indicate the highest concentration of urban activity. Green dots mark the local density peaks.</span></span></div>
+    <button className="expand-btn" onClick={()=>onExpand({type:"density",title:"Where does activity concentrate?",density:den,meta})}>⛶ Expand</button>
+    <DensityMap density={den} meta={meta}/>
   </div>
 
-  {/* COL 2 ROW 2 — DistHist */}
-  <div style={{gridColumn:"2",gridRow:"2",minHeight:0,overflow:"hidden"}}>
-    <Pnl t={`How far do people walk from the stadium?${selInterval?` · ${selInterval[0]}–${selInterval[1]}m`:""}`} tip="Shows the distribution of places by walking distance along the street network. Bars represent 250m intervals up to 3km."><DistHist places={places} maxDist={maxDist} selInterval={selInterval} onIntervalClick={toggleInterval} meta={meta}/></Pnl>
-  </div>
+  <Pnl t={`How far do people walk from the stadium?${selInterval?` · ${selInterval[0]}–${selInterval[1]}m`:""}`} tip="Shows the distribution of places by walking distance along the street network. Bars represent 250m intervals up to 3km."><DistHist places={places} maxDist={maxDist} selInterval={selInterval} onIntervalClick={toggleInterval} meta={meta}/></Pnl>
 
-  {/* COL 3 ROW 1 — Treemap */}
-  <div style={{gridColumn:"3",gridRow:"1",borderRadius:6,overflow:"hidden",background:"#151616",display:"flex",flexDirection:"column",minHeight:0}}>
-    <div style={{padding:"5px 10px",borderBottom:"1px solid #3A3F44",fontSize:10,fontWeight:600,color:"#b4bac0",flexShrink:0}}><span className="pnl-title-wrap">What types of places exist here?<span className="pnl-tooltip">Each block's area represents the number of places in that category. Click any block to filter all dashboard panels by that category.</span></span></div>
-    <div style={{flex:1,minHeight:0,overflow:"hidden"}}>
+  <div style={{borderRadius:6,overflow:"hidden",background:"#151616",display:"flex",flexDirection:"column",minHeight:0}}>
+    <div style={{padding:"5px 10px",borderBottom:"1px solid #1e1e1f",fontSize:10,fontWeight:600,color:"#b4bac0",flexShrink:0}}><span class="pnl-title-wrap">What types of places exist here?<span class="pnl-tooltip">Each block's area represents the number of places in that category. Click any block to filter all dashboard panels by that category.</span></span></div>
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",minHeight:0,overflow:"hidden"}}>
       <Donut catCount={filteredCatCount} selCats={selCats} onToggle={toggleCat}/>
     </div>
   </div>
+</div>
 
-  {/* COL 3 ROW 2 — WalkRadar */}
-  <div style={{gridColumn:"3",gridRow:"2",minHeight:0,overflow:"hidden"}}>
-    <Pnl t="How walkable are the surroundings?" tip="Compares actual walking distances (graph) vs straight-line distances (linear). A tighter shape means more direct, walkable streets. The % shows path directness."><WalkRadar places={filtered} maxDist={maxDist}/></Pnl>
+{/* LEGEND ROW — split: categories under places map, density bar under density map */}
+<div style={{display:"grid",gridTemplateColumns:"1.8fr 1.8fr 0.55fr 0.85fr",gap:8,padding:"3px 0 2px"}}>
+  {/* Categories legend — under Places Map only */}
+  <div style={{display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:"1px 4px",paddingLeft:2,alignContent:"start"}}>
+    {Object.entries(CC).map(([cat,c])=>(<div key={cat} style={{display:"flex",alignItems:"center",gap:2,fontSize:8,color:"#777"}}>
+      <div style={{width:5,height:5,borderRadius:"50%",background:`rgb(${c})`,flexShrink:0}}/>
+      <span style={{textTransform:"capitalize",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cat}</span>
+    </div>))}
   </div>
+  {/* Density colorbar — under Density Map only */}
+  <div style={{display:"flex",flexDirection:"column",gap:1,justifyContent:"center"}}>
+    <div style={{height:6,borderRadius:3,background:"linear-gradient(to right, rgba(255,255,230,0.8), rgba(254,196,79,0.8), rgba(246,120,32,0.8), rgba(200,20,15,0.8), rgba(140,0,20,0.8))"}}/>
+    <div style={{display:"flex",justifyContent:"space-between"}}>
+      <span style={{fontSize:8,color:"#666"}}>Low</span>
+      <span style={{fontSize:8,color:"#666"}}>Mid</span>
+      <span style={{fontSize:8,color:"#666"}}>High</span>
+    </div>
+  </div>
+  {/* Empty spacers for histogram and categories columns */}
+  <div/>
+  <div/>
+</div>
+
+{/* ROW 2 */}
+<div style={{display:"grid",gridTemplateColumns:"2.55fr 1.05fr 1.4fr",gap:8,minHeight:0,overflow:"hidden"}}>
+  <Pnl t="How does activity change with distance?" tip="Each line represents a category of place. Peaks show where that activity concentrates relative to the stadium."><CompChart places={filtered} meta={meta}/></Pnl>
+  <Pnl t="Stadium Profile" tip="Key urban metrics for this stadium's surroundings — place counts, diversity, street network characteristics and predominant activity types."><Stats meta={meta} total={filtered.length} catCount={filteredCatCount} slug={meta.slug} manifest={IX}/></Pnl>
+  <Pnl t="How walkable are the surroundings?" tip="Compares actual walking distances (graph) vs straight-line distances (linear). A tighter shape means more direct, walkable streets. The % shows path directness."><WalkRadar places={filtered} maxDist={maxDist}/></Pnl>
+</div>
 
 </div>
 </div>
 
-{/* RIGHT: TypeBar panel */}
-<div style={{width:190,flexShrink:0,background:"#151616",borderLeft:"1px solid #3A3F44",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-  <div style={{padding:"5px 10px",borderBottom:"1px solid #3A3F44",fontSize:9,fontWeight:700,color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:"0.5px",flexShrink:0}}>
-    <span className="pnl-title-wrap">Top Place Types<span className="pnl-tooltip">Most frequent place types within the selected radius. Click any row to filter.</span></span>
-  </div>
+{/* TYPE BAR — right column */}
+<div style={{width:190,flexShrink:0,background:"#151616",borderRadius:6,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+  <div style={{padding:"5px 10px",borderBottom:"1px solid #1e1e1f",fontSize:10,fontWeight:600,color:"#b4bac0",flexShrink:0}}><span class="pnl-title-wrap">Most common place types<span class="pnl-tooltip">The 50 most frequent place types within the selected radius, ranked by count and colored by category. Click any row to filter all dashboard panels by that place type.</span></span></div>
   <div style={{flex:1,overflow:"hidden",minHeight:0}}><TypeBar places={filteredBase} selTypes={selTypes} onToggleType={toggleType}/></div>
 </div>
 
-</div>
-</React.Fragment>);
+</div>);
 }
 
 
@@ -1733,7 +1257,7 @@ useEffect(()=>{
       i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
     }
     ctx.closePath();
-    ctx.strokeStyle=`rgba(255,255,255,${ri===nRings?0.35:0.15})`;
+    ctx.strokeStyle=`rgba(255,255,255,${ri===nRings?0.1:0.04})`;
     ctx.lineWidth=0.5;ctx.stroke();
   }
 
@@ -1744,12 +1268,12 @@ useEffect(()=>{
     const angle=startAngle+i*angleStep;
     const [x0,y0]=pt(angle,2);
     const [x1,y1]=pt(angle,maxR);
-    ctx.strokeStyle="rgba(255,255,255,0.25)";ctx.lineWidth=0.5;
+    ctx.strokeStyle="rgba(255,255,255,0.06)";ctx.lineWidth=0.5;
     ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
     // Label
     const labelR=maxR+margin*0.52;
     const [lx,ly]=pt(angle,labelR);
-    ctx.fillStyle="#9ca3aa";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillStyle="#4a4a4a";ctx.textAlign="center";ctx.textBaseline="middle";
     ctx.fillText(bins[i],lx,ly);
   }
 
@@ -1787,13 +1311,13 @@ useEffect(()=>{
   if(overlapScore!==null){
     ctx.fillStyle="#ddd";ctx.font=`700 ${cLabelSize*1.1}px system-ui`;
     ctx.fillText(overlapScore+"%",cx,cy-cLabelSize*0.6);
-    ctx.font=`${Math.max(6,labelFontSize-1)}px system-ui`;ctx.fillStyle="#8F97A0";
+    ctx.font=`${Math.max(6,labelFontSize-1)}px system-ui`;ctx.fillStyle="#555";
     ctx.fillText("path",cx,cy+cLabelSize*0.1);
     ctx.fillText("directness",cx,cy+cLabelSize*0.85);
   } else {
     ctx.fillStyle="#ddd";ctx.font=`600 ${cLabelSize}px system-ui`;
     ctx.fillText(places.length,cx,cy-cLabelSize*0.5);
-    ctx.font=`${labelFontSize}px system-ui`;ctx.fillStyle="#8F97A0";
+    ctx.font=`${labelFontSize}px system-ui`;ctx.fillStyle="#555";
     ctx.fillText("places",cx,cy+cLabelSize*0.6);
   }
 
@@ -1803,7 +1327,7 @@ useEffect(()=>{
   const swatchW=14,swatchH=3,gap=6;
   // Graph
   ctx.fillStyle="rgba(74,158,255,0.9)";ctx.fillRect(midX-(hasLinear?90:45),legY,swatchW,swatchH);
-  ctx.fillStyle="#9ca3aa";ctx.font=`${labelFontSize}px system-ui`;ctx.textAlign="left";
+  ctx.fillStyle="#555";ctx.font=`${labelFontSize}px system-ui`;ctx.textAlign="left";
   ctx.fillText("Graph dist.",midX-(hasLinear?90:45)+swatchW+gap,legY+swatchH/2+1);
   // Linear
   if(hasLinear){
@@ -1819,7 +1343,7 @@ return(<div ref={pRef} style={{width:"100%",height:"100%",padding:4}}>
 
 function Pnl({t,tip,children}){
 return(<div style={{background:"#151616",borderRadius:6,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0,height:"100%"}}>
-<div style={{padding:"5px 10px",borderBottom:"1px solid #3A3F44",fontSize:10,fontWeight:600,color:"#b4bac0",flexShrink:0}}>
+<div style={{padding:"5px 10px",borderBottom:"1px solid #1e1e1f",fontSize:10,fontWeight:600,color:"#b4bac0",flexShrink:0}}>
   {tip?<span className="pnl-title-wrap">{t}<span className="pnl-tooltip">{tip}</span></span>:t}
 </div>
 <div style={{padding:6,flex:1,minHeight:0,overflow:"hidden"}}>{children}</div></div>);
@@ -1828,7 +1352,7 @@ return(<div style={{background:"#151616",borderRadius:6,overflow:"hidden",displa
 function ScatterMap({places,meta}){
 const cRef=useRef(null);
 useEffect(()=>{if(!cRef.current||!places?.length)return;
-const map=new maplibregl.Map({container:cRef.current,style:{version:8,sources:{"esri-sat":{type:"raster",tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],tileSize:256,attribution:"Esri"}},layers:[{id:"esri-sat",type:"raster",source:"esri-sat"}]},center:[meta.longitude,meta.latitude],zoom:14.45,attributionControl:false,interactive:true});
+const map=new maplibregl.Map({container:cRef.current,style:"https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json",center:[meta.longitude,meta.latitude],zoom:13.45,attributionControl:false,interactive:true});
 map.on("load",()=>{
   const features=places.map(d=>({type:"Feature",geometry:{type:"Point",coordinates:[d[1],d[0]]},properties:{category:d[2],r:(CC[d[2]]||CC.uncategorized)[0],g:(CC[d[2]]||CC.uncategorized)[1],b:(CC[d[2]]||CC.uncategorized)[2]}}));
   map.addSource("places",{type:"geojson",data:{type:"FeatureCollection",features}});
@@ -1845,7 +1369,7 @@ const{bounds,gs,grid,peaks,pts,ctr,npts,paths}=density;
 const[west,south,east,north]=bounds;
 const colorFn=makeYlOrRd(npts);
 
-const map=new maplibregl.Map({container:cRef.current,style:{version:8,sources:{"esri-sat":{type:"raster",tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],tileSize:256,attribution:"Esri"}},layers:[{id:"esri-sat",type:"raster",source:"esri-sat"}]},center:[meta.longitude,meta.latitude],zoom:13.45,attributionControl:false,interactive:true});
+const map=new maplibregl.Map({container:cRef.current,style:"https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json",center:[meta.longitude,meta.latitude],zoom:13.45,attributionControl:false,interactive:true});
 
 map.on("load",()=>{
   const canvas=document.createElement("canvas");canvas.width=gs;canvas.height=gs;
@@ -2229,7 +1753,7 @@ const Row=({label,value,pct})=>(<div style={{display:"flex",justifyContent:"spac
   <div style={{fontSize:13,fontWeight:600,color:"#ddd",fontFamily:"'Courier New',monospace"}}>{value??"—"}</div>
 </div></div>);
 const Section=({title,children})=>(<div style={{marginBottom:4}}>
-<div style={{fontSize:10,fontWeight:700,color:"#a0a7ae",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:1,borderBottom:"1px solid #3A3F44",paddingBottom:1}}>{title}</div>
+<div style={{fontSize:10,fontWeight:700,color:"#a0a7ae",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:1,borderBottom:"1px solid #1e1e1f",paddingBottom:1}}>{title}</div>
 {children}</div>);
 
 return(<div style={{display:"flex",flexDirection:"column",gap:2,height:"100%",overflowY:"auto",overflowX:"hidden",paddingRight:2}}>
