@@ -1,0 +1,6 @@
+# Local library copies
+Stadia Urban Observatory_files/
+*.docx
+*.pdf
+Obsolete/
+.DS_Store
