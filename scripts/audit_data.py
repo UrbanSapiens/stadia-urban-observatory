@@ -49,9 +49,11 @@ EURO_HOSTS = {
     "2024": ["Germany"],
 }
 OLY_HOSTS = {
-    "1992": ["Spain"], "1996": ["United States"], "2000": ["Australia"],
-    "2004": ["Greece"], "2008": ["China"], "2012": ["United Kingdom", "England"],
-    "2016": ["Brazil"], "2020": ["Japan"], "2024": ["France"],
+    "1960": ["Italy"], "1964": ["Japan"], "1968": ["Mexico"], "1972": ["Germany", "West Germany"],
+    "1976": ["Canada"], "1980": ["Russia", "Soviet Union"], "1984": ["United States"],
+    "1988": ["South Korea", "Korea Republic"], "1992": ["Spain"], "1996": ["United States"],
+    "2000": ["Australia"], "2004": ["Greece"], "2008": ["China"],
+    "2012": ["United Kingdom", "England"], "2016": ["Brazil"], "2020": ["Japan"], "2024": ["France"],
 }
 # Host cities (lat, lng) for venue-level WC checks. A legitimate host stadium
 # must lie within HOST_CITY_KM of one of its tournament's cities.
