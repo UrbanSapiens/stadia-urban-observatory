@@ -1414,6 +1414,7 @@ return(
 
 function App(){
 const[sel,setSel]=useState(null);const[sd,setSd]=useState(null);
+const[activeColl,setActiveColl]=useState(null); // filename-slug of the collection currently displayed (files' internal m.slug can differ, e.g. diacritics)
 const[lightbox,setLightbox]=useState(null);
 const[selCountry,setSelCountry]=useState(null);
 const[activeTab,setActiveTab]=useState("landing");
@@ -1480,6 +1481,7 @@ const handleCountrySelect=useCallback((country)=>{
 const handleSelect=useCallback((s)=>{
   setObStep(s2=>s2===1?2:s2);
   setSel(s);
+  setActiveColl(s.slug); // newest collection is the canonical slug
   setSd(null); // clear stale data immediately so button resets to "Loading data…"
   loadingSlugRef.current=s.slug; // track latest request to discard stale responses
   const FLY_MS=5000;
@@ -1509,6 +1511,7 @@ const handleSelect=useCallback((s)=>{
 const handleSelectCollection=useCallback((slug)=>{
   if(loadingSlugRef.current===slug)return;
   loadingSlugRef.current=slug;
+  setActiveColl(slug);
   loadStadium(slug).then(d=>{
     if(!d||loadingSlugRef.current!==slug)return;
     setSd(d);
@@ -1731,7 +1734,7 @@ return(
               const cols=[...sel.collections].sort((a,b)=>b.date.localeCompare(a.date));
               return(<div style={{display:"flex",alignItems:"center",gap:5}}>
                 <span style={{fontSize:9,color:"var(--text-dim)",textTransform:"uppercase",letterSpacing:"0.5px"}}>Collection</span>
-                {cols.map(c=>{const active=sd.m.slug===c.slug;
+                {cols.map(c=>{const active=activeColl===c.slug;
                   return(<button key={c.slug} onClick={()=>handleSelectCollection(c.slug)} title={`Data collected ${c.label}`}
                     style={{fontSize:9,fontWeight:600,fontFamily:"var(--font)",padding:"3px 9px",borderRadius:12,cursor:active?"default":"pointer",
                       background:active?"var(--teal)":"transparent",color:active?"#fff":"var(--text-muted)",
@@ -1764,7 +1767,7 @@ return(
         </div>
 
         {/* OVERVIEW TAB */}
-        {activeTab==="overview"&&<DashOverview data={sd} onExpand={setLightbox} manifest={manifest}/>}
+        {activeTab==="overview"&&<DashOverview data={sd} onExpand={setLightbox} manifest={manifest} collections={sel?.collections} onCollection={handleSelectCollection} activeColl={activeColl}/>}
 
         {/* PLACEHOLDER TABS */}
         {activeTab==="density"&&(
@@ -1846,7 +1849,7 @@ function Onboarding({step,onNext,onSkip}){
 }
 
 
-function DashOverview({data,onExpand,manifest}){
+function DashOverview({data,onExpand,manifest,collections,onCollection,activeColl}){
 const{m:meta,p:places,cc:catCount,tp:totalPlaces,den}=data;
 const[maxDist,setMaxDist]=useState(1500);
 const[selCats,setSelCats]=useState(null);
@@ -1974,7 +1977,7 @@ return(
 
   {/* COL 2 ROW 1 — Stadium Profile */}
   <div style={{gridColumn:"2",gridRow:"1",minHeight:0,overflow:"hidden"}}>
-    <Pnl t="Stadium Profile" tip="Key urban metrics for this stadium's surroundings — place counts, diversity, street network characteristics and predominant activity types."><Stats meta={meta} total={filtered.length} catCount={filteredCatCount} slug={meta.slug} manifest={IX}/></Pnl>
+    <Pnl t="Stadium Profile" tip="Key urban metrics for this stadium's surroundings — place counts, diversity, street network characteristics and predominant activity types."><Stats meta={meta} total={filtered.length} catCount={filteredCatCount} slug={meta.slug} manifest={IX} collections={collections} onCollection={onCollection} activeColl={activeColl}/></Pnl>
   </div>
 
   {/* COL 2 ROW 2 — DistHist */}
@@ -2646,7 +2649,7 @@ return(<div ref={pRef} style={{width:"100%",height:"100%"}}>
   <canvas ref={cRef} style={{display:"block",cursor:"pointer"}} onClick={handleClick}/>
 </div>);}
 
-function Stats({meta,total,catCount,slug,manifest}){const s=meta.stats;
+function Stats({meta,total,catCount,slug,manifest,collections,onCollection,activeColl}){const s=meta.stats;
 const catVals=Object.values(catCount||{});
 const totalC=catVals.reduce((a,b)=>a+b,0);
 const activeCats=catVals.filter(n=>n>0).length;
@@ -2681,7 +2684,20 @@ if(evts.nwsl)evtTags.push("NWSL");
 if(evts.chinaStadiumDiplomacy)evtTags.push("China Stadium Diplomacy");
 
 return(<div style={{display:"flex",flexDirection:"column",gap:2,height:"100%",overflowY:"auto",overflowX:"hidden",paddingRight:2}}>
-{meta.collectionLabel&&<div style={{fontSize:9,color:"#9aa2a9",fontStyle:"italic",marginBottom:3}}>Data collected: {meta.collectionLabel}</div>}
+{collections?.length>1?(()=>{
+  const cols=[...collections].sort((a,b)=>b.date.localeCompare(a.date));
+  return(<div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginBottom:4}}>
+    <span style={{fontSize:9,color:"#9aa2a9",fontStyle:"italic"}}>Data collected:</span>
+    {cols.map(c=>{const active=activeColl===c.slug;
+      return(<button key={c.slug} onClick={()=>onCollection&&onCollection(c.slug)} title={`Show the ${c.label} collection`}
+        style={{fontSize:9,fontWeight:600,fontFamily:"var(--font)",padding:"2px 8px",borderRadius:10,cursor:active?"default":"pointer",
+          background:active?"#5CB8A7":"transparent",color:active?"#fff":"#9aa2a9",
+          border:active?"1px solid #5CB8A7":"1px solid #3A3F44"}}
+        onMouseEnter={e=>{if(!active){e.currentTarget.style.borderColor="#5CB8A7";e.currentTarget.style.color="#d8dde3";}}}
+        onMouseLeave={e=>{if(!active){e.currentTarget.style.borderColor="#3A3F44";e.currentTarget.style.color="#9aa2a9";}}}>
+        {c.label}</button>);})}
+  </div>);
+})():(meta.collectionLabel&&<div style={{fontSize:9,color:"#9aa2a9",fontStyle:"italic",marginBottom:3}}>Data collected: {meta.collectionLabel}</div>)}
 <Section title="Stadium Info">
 {meta.city&&<Row label="City" value={meta.country&&meta.city.includes(meta.country)?meta.city.split(meta.country)[0].replace(/[\s,]+$/,""):meta.city}/>}
 {meta.country&&<Row label="Country" value={meta.country}/>}
