@@ -1,0 +1,33 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Copyright (c) 2026 Gustavo Garcia do Amaral
+
+Applies to the datasets in data/, to Stadia_database.xlsx, and to the values
+embedded in index.html. Source code is licensed separately under the MIT
+License — see LICENSE.
+
+You are free to share and adapt this material for any purpose, including
+commercially, provided you give appropriate credit, link to the license, and
+indicate if changes were made.
+
+  Full legal text: https://creativecommons.org/licenses/by/4.0/legalcode
+  Summary:         https://creativecommons.org/licenses/by/4.0/
+
+ATTRIBUTION
+
+  Amaral, Gustavo Garcia do. Stadia Urban Observatory: 4-D urban model analysis
+  of major event stadiums.
+  https://github.com/UrbanSapiens/stadia-urban-observatory
+
+CONDITIONS OF USE
+
+  Event attributions (World Cup, Olympic, Euro, MLS and stadium diplomacy tags)
+  are curated and have been corrected at least once — see DATA_AUDIT.md for the
+  log and for venues still lacking a confirmed event. Verify against a primary
+  source before relying on any individual claim, and retain the limitations
+  documented in DATA_AUDIT.md when redistributing.
+
+NO WARRANTY
+
+  This material is provided as-is, without warranties or conditions of any
+  kind, to the extent permitted by law.
