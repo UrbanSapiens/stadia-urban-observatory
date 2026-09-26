@@ -4,3 +4,6 @@ Stadia Urban Observatory_files/
 *.pdf
 Obsolete/
 .DS_Store
+
+# Private project notes for Claude Code
+CLAUDE.md

@@ -13,7 +13,7 @@ A sibling of the [Goiás Violence Observatory](https://github.com/UrbanSapiens/g
 
 ## What's here
 
-**247 unique venues across 55 countries**, held in 280 per-stadium JSON files
+**247 unique venues across 55 countries**, held in 279 per-stadium JSON files
 under `data/` — 32 venues were surveyed twice, and both passes are kept so the
 dashboard can show the same ground at two points in time.
 
