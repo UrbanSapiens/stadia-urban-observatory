@@ -906,6 +906,20 @@ function divScore(catCounts,total){
   const evenness=maxShannon>0?shannon/maxShannon:0;
   return evenness*Math.sqrt(total/100)*(n/16);
 }
+// Poster ramp (t in 0..1): plum, magenta, crimson, orange, yellow. The scheme of the
+// Stadia posters, used for diversity surfaces on a dark ground.
+function posterRamp(t){
+  t=Math.max(0,Math.min(1,t));
+  const stops=[[0,70,18,72],[0.25,138,20,84],[0.5,205,34,62],[0.72,238,104,28],[0.88,250,160,24],[1,255,214,64]];
+  for(let i=0;i<stops.length-1;i++){
+    if(t>=stops[i][0]&&t<=stops[i+1][0]){
+      const f=(t-stops[i][0])/(stops[i+1][0]-stops[i][0]);
+      return[1,2,3].map(k=>Math.round(stops[i][k]+(stops[i+1][k]-stops[i][k])*f));
+    }
+  }
+  return[255,214,64];
+}
+const POSTER_GRADIENT="linear-gradient(to right,rgb(70,18,72),rgb(138,20,84),rgb(205,34,62),rgb(238,104,28),rgb(250,160,24),rgb(255,214,64))";
 // Viridis colour ramp (t in 0..1) — perceptual scale for diversity surfaces.
 function viridis(t){
   t=Math.max(0,Math.min(1,t));
@@ -2792,60 +2806,151 @@ return(<div key={cat} style={{display:"flex",justifyContent:"space-between",alig
 // Satellite map with a Shannon-diversity grid overlay (whole-map scale) plus a
 // right column: overall index, diversity across walking-distance rings (the
 // "centrality" scale, approximated by network distance), and category mix.
-function DiversityGrid({meta,places,nCells=28,extentM=1500}){
-const cRef=useRef(null);const mapRef=useRef(null);
-useEffect(()=>{if(!cRef.current)return;const o=new ResizeObserver(()=>{if(mapRef.current)mapRef.current.resize();});o.observe(cRef.current);return()=>o.disconnect();},[]);
-useEffect(()=>{
-  if(!cRef.current||!places?.length)return;
-  const cLat=meta.latitude,cLng=meta.longitude;
-  const latHalf=extentM/111320;
-  const lonHalf=extentM/(111320*Math.cos(cLat*Math.PI/180));
-  const cellLat=2*latHalf/nCells,cellLon=2*lonHalf/nCells;
-
-  // Bin places into grid cells, tallying category counts per cell.
+// Grid of the 3D-printed exhibition models: 70 x 70 cells over a 3 km square.
+const GRID_N=70,GRID_EXTENT_M=1500;
+const ZONE_COLORS=["#ffffff","#7fd6ff","#b6ff8a"];
+const MODEL_RED="#e2402f";
+const M_PER_DEG=111320;
+function circlePoly(lng,lat,rM,n=72){
+  const pts=[];
+  for(let i=0;i<=n;i++){const a=i/n*2*Math.PI;
+    pts.push([lng+rM*Math.cos(a)/(M_PER_DEG*Math.cos(lat*Math.PI/180)),lat+rM*Math.sin(a)/M_PER_DEG]);}
+  return pts;
+}
+function metresBetween(lat1,lng1,lat2,lng2){
+  const dx=(lng2-lng1)*M_PER_DEG*Math.cos((lat1+lat2)/2*Math.PI/180),dy=(lat2-lat1)*M_PER_DEG;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+// Bin the places and score every cell. Same scores as the printed models
+// (generate_grid_excel.py): count, diversity (divScore), and
+// combined = sqrt(count) x (1 + 9 x diversity / max diversity), scaled to 0..1.
+function buildDivGrid(meta,places){
+  const cLat=meta.latitude,cLng=meta.longitude,n=GRID_N;
+  const latHalf=GRID_EXTENT_M/M_PER_DEG,lonHalf=GRID_EXTENT_M/(M_PER_DEG*Math.cos(cLat*Math.PI/180));
+  const cellLat=2*latHalf/n,cellLon=2*lonHalf/n;
   const cells={};
   places.forEach(d=>{
-    const lat=d[0],lng=d[1],cat=d[2]||"uncategorized";
-    const col=Math.floor((lng-(cLng-lonHalf))/cellLon);
-    const row=Math.floor(((cLat+latHalf)-lat)/cellLat);
-    if(col<0||col>=nCells||row<0||row>=nCells)return;
-    const k=row+"_"+col;
-    if(!cells[k])cells[k]={counts:{},total:0,row,col};
-    cells[k].counts[cat]=(cells[k].counts[cat]||0)+1;
-    cells[k].total++;
+    const col=Math.floor((d[1]-(cLng-lonHalf))/cellLon),row=Math.floor(((cLat+latHalf)-d[0])/cellLat);
+    if(col<0||col>=n||row<0||row>=n)return;
+    const k=row*n+col,cat=d[2]||"uncategorized";
+    const c=cells[k]||(cells[k]={counts:{},total:0,row,col});
+    c.counts[cat]=(c.counts[cat]||0)+1;c.total++;
   });
-  let maxDiv=0;
-  Object.values(cells).forEach(c=>{c.div=divScore(c.counts,c.total);if(c.div>maxDiv)maxDiv=c.div;});
-  const features=Object.values(cells).map(c=>{
-    const t=maxDiv>0?c.div/maxDiv:0;
-    const[r,g,b]=viridis(t);
-    const a=(0.25+0.6*t).toFixed(2);
-    const west=cLng-lonHalf+c.col*cellLon,east=west+cellLon;
-    const north=cLat+latHalf-c.row*cellLat,south=north-cellLat;
+  const list=Object.values(cells);
+  let maxDiv=0,maxCount=0,maxRaw=0;
+  list.forEach(c=>{c.div=divScore(c.counts,c.total);if(c.div>maxDiv)maxDiv=c.div;if(c.total>maxCount)maxCount=c.total;});
+  list.forEach(c=>{c.raw=Math.sqrt(c.total)*(1+9*(maxDiv>0?c.div/maxDiv:0));if(c.raw>maxRaw)maxRaw=c.raw;});
+  // Colour by rank, not raw value: one very mixed cell would otherwise push every
+  // other cell to the bottom of the ramp. The legend says so.
+  const sorted=list.map(c=>c.div).sort((x,y)=>x-y);
+  const rankOf=v=>{let lo=0,hi=sorted.length;while(lo<hi){const m=(lo+hi)>>1;if(sorted[m]<v)lo=m+1;else hi=m;}return sorted.length>1?lo/(sorted.length-1):0;};
+  const features=list.map(c=>{
+    const tDiv=maxDiv>0?c.div/maxDiv:0;
+    const west=cLng-lonHalf+c.col*cellLon,east=west+cellLon,north=cLat+latHalf-c.row*cellLat,south=north-cellLat;
+    const[r,g,b]=posterRamp(rankOf(c.div));
     return{type:"Feature",geometry:{type:"Polygon",coordinates:[[[west,south],[east,south],[east,north],[west,north],[west,south]]]},
-      properties:{color:`rgba(${r},${g},${b},${a})`,div:+c.div.toFixed(3),total:c.total,cats:Object.keys(c.counts).length}};
+      properties:{col:`rgb(${r},${g},${b})`,div:+c.div.toFixed(3),total:c.total,cats:Object.keys(c.counts).length,
+        hComb:maxRaw>0?c.raw/maxRaw:0,hCount:maxCount>0?c.total/maxCount:0,hDiv:tDiv}};
   });
+  return{features,nCells:list.length,maxCount,maxDiv,bounds:[[cLng-lonHalf,cLat-latHalf],[cLng+lonHalf,cLat+latHalf]]};
+}
 
-  const map=new maplibregl.Map({container:cRef.current,style:{version:8,sources:{"esri-sat":{type:"raster",tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],tileSize:256,attribution:"Esri"}},layers:[{id:"esri-sat",type:"raster",source:"esri-sat"}]},center:[cLng,cLat],zoom:13.2,attributionControl:false,interactive:true});
-  mapRef.current=map;
-  map.on("load",()=>{
-    map.addSource("divgrid",{type:"geojson",data:{type:"FeatureCollection",features}});
-    map.addLayer({id:"divgrid-fill",type:"fill",source:"divgrid",paint:{"fill-color":["get","color"],"fill-outline-color":"rgba(0,0,0,0.25)"}});
-    map.addSource("stad-c",{type:"geojson",data:{type:"Feature",geometry:{type:"Point",coordinates:[cLng,cLat]},properties:{}}});
-    map.addLayer({id:"stad-c-ring",type:"circle",source:"stad-c",paint:{"circle-radius":7,"circle-color":"transparent","circle-stroke-width":2,"circle-stroke-color":"rgba(255,255,255,0.85)"}});
-    map.fitBounds([[cLng-lonHalf,cLat-latHalf],[cLng+lonHalf,cLat+latHalf]],{padding:8,duration:0});
-
-    const popup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8});
-    map.on("mousemove","divgrid-fill",e=>{
-      map.getCanvas().style.cursor="pointer";
-      const p=e.features[0].properties;
-      popup.setLngLat(e.lngLat).setHTML(`<div style="font-family:var(--font);font-size:11px"><b style="color:#5CB8A7">Diversity ${(+p.div).toFixed(2)}</b><br>${p.total} place${p.total!==1?"s":""} · ${p.cats} categor${p.cats!==1?"ies":"y"}</div>`).addTo(map);
+// Diversity grid as extruded cells (the printed-model logic) on a tilted map.
+// Click the map to drop a centrality zone; the readout lives in DashDiversity.
+function DiversityIso({meta,places,zones,onAddZone}){
+const cRef=useRef(null);const mapRef=useRef(null);const addRef=useRef(onAddZone);addRef.current=onAddZone;
+const[ready,setReady]=useState(false);
+const[view3d,setView3d]=useState(true);
+const[hKey,setHKey]=useState("hComb");      // which score drives the height
+const[mono,setMono]=useState(false);        // single red, like the printed model
+const[base,setBase]=useState("dark");
+const[maxH,setMaxH]=useState(700);          // metres for a cell with score 1
+const grid=React.useMemo(()=>places?.length?buildDivGrid(meta,places):null,[meta,places]);
+useEffect(()=>{if(!cRef.current)return;const o=new ResizeObserver(()=>{if(mapRef.current)mapRef.current.resize();});o.observe(cRef.current);return()=>o.disconnect();},[]);
+useEffect(()=>{
+  if(!cRef.current||!grid)return;
+  let map=null,dead=false;
+  loadBasemapStyle().then(style=>{
+    if(dead||!cRef.current)return;
+    map=new maplibregl.Map({container:cRef.current,style,center:[meta.longitude,meta.latitude],zoom:13,pitch:55,bearing:-25,maxPitch:75,attributionControl:false});
+    map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-right");
+    mapRef.current=map;
+    map.on("load",()=>{
+      map.getStyle().layers.forEach(l=>{if(l.type==="symbol")map.setLayoutProperty(l.id,"visibility","none");});
+      map.addSource("esri-sat",{type:"raster",tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],tileSize:256,attribution:"Imagery © Esri and its data providers"});
+      map.addLayer({id:"esri-sat",type:"raster",source:"esri-sat",layout:{visibility:"none"},paint:{"raster-brightness-max":0.55}});
+      map.addSource("divgrid",{type:"geojson",data:{type:"FeatureCollection",features:grid.features}});
+      map.addLayer({id:"divgrid-flat",type:"fill",source:"divgrid",layout:{visibility:"none"},paint:{"fill-color":["get","col"],"fill-opacity":0.85,"fill-outline-color":"rgba(0,0,0,0.3)"}});
+      map.addLayer({id:"divgrid-3d",type:"fill-extrusion",source:"divgrid",paint:{"fill-extrusion-color":["get","col"],"fill-extrusion-height":["*",["get","hComb"],700],"fill-extrusion-opacity":0.94}});
+      map.addSource("zones",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+      map.addLayer({id:"zones-fill",type:"fill",source:"zones",paint:{"fill-color":["get","color"],"fill-opacity":0.07}});
+      map.addLayer({id:"zones-line",type:"line",source:"zones",paint:{"line-color":["get","color"],"line-width":2,"line-dasharray":[2,2]}});
+      map.addSource("stad-c",{type:"geojson",data:{type:"Feature",geometry:{type:"Point",coordinates:[meta.longitude,meta.latitude]},properties:{}}});
+      map.addLayer({id:"stad-c-ring",type:"circle",source:"stad-c",paint:{"circle-radius":7,"circle-color":"rgba(255,255,255,0.9)","circle-stroke-width":3,"circle-stroke-color":"rgba(255,255,255,0.35)"}});
+      map.fitBounds(grid.bounds,{padding:30,duration:0,pitch:55,bearing:-25});
+      map.setZoom(map.getZoom()+0.45);
+      const popup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:10});
+      const hover=e=>{
+        const p=e.features[0].properties;
+        popup.setLngLat(e.lngLat).setHTML(`<div style="font-family:var(--font);font-size:11px"><b style="color:#f6a01a">Diversity ${(+p.div).toFixed(2)}</b><br>${p.total} place${p.total!==1?"s":""} · ${p.cats} categor${p.cats!==1?"ies":"y"}<br><span style="color:#9aa1a8">combined score ${(+p.hComb).toFixed(2)}</span></div>`).addTo(map);
+      };
+      ["divgrid-flat","divgrid-3d"].forEach(id=>{map.on("mousemove",id,hover);map.on("mouseleave",id,()=>popup.remove());});
+      map.getCanvas().style.cursor="crosshair";
+      map.on("click",e=>{if(addRef.current)addRef.current({lng:e.lngLat.lng,lat:e.lngLat.lat});});
+      setReady(true);
     });
-    map.on("mouseleave","divgrid-fill",()=>{map.getCanvas().style.cursor="";popup.remove();});
   });
-  return()=>{map.remove();mapRef.current=null;};
-},[places,meta,nCells,extentM]);
-return <div ref={cRef} style={{width:"100%",height:"100%"}}/>;
+  return()=>{dead=true;setReady(false);if(map)map.remove();mapRef.current=null;};
+},[grid,meta]);
+// Controls -> map
+useEffect(()=>{
+  const map=mapRef.current;if(!map||!ready)return;
+  map.setLayoutProperty("divgrid-3d","visibility",view3d?"visible":"none");
+  map.setLayoutProperty("divgrid-flat","visibility",view3d?"none":"visible");
+  map.setLayoutProperty("esri-sat","visibility",base==="sat"?"visible":"none");
+  map.setPaintProperty("divgrid-3d","fill-extrusion-height",["*",["get",hKey],maxH]);
+  map.setPaintProperty("divgrid-3d","fill-extrusion-color",mono?MODEL_RED:["get","col"]);
+},[view3d,hKey,mono,base,maxH,ready]);
+useEffect(()=>{
+  const map=mapRef.current;if(!map||!ready)return;
+  map.easeTo(view3d?{pitch:55,bearing:-25,duration:700}:{pitch:0,bearing:0,duration:700});
+},[view3d,ready]);
+useEffect(()=>{
+  const map=mapRef.current;if(!map||!ready)return;
+  map.getSource("zones").setData({type:"FeatureCollection",features:(zones||[]).map((z,i)=>({type:"Feature",
+    geometry:{type:"Polygon",coordinates:[circlePoly(z.lng,z.lat,z.r)]},properties:{color:ZONE_COLORS[i%ZONE_COLORS.length]}}))});
+},[zones,ready]);
+const Seg=({label,value,set,opts,disabled})=>(<div style={{display:"flex",alignItems:"center",gap:6,opacity:disabled?0.4:1}}>
+  <span style={{width:44,fontSize:8,color:"#8a9298",textTransform:"uppercase",letterSpacing:"0.8px"}}>{label}</span>
+  <div style={{display:"flex",border:"1px solid #3a3f44",borderRadius:4,overflow:"hidden"}}>
+    {opts.map(([v,t])=>(<button key={String(v)} disabled={disabled} onClick={()=>set(v)}
+      style={{fontSize:9,fontFamily:"var(--font)",padding:"3px 8px",border:"none",cursor:disabled?"default":"pointer",
+        background:value===v?"#f6a01a":"transparent",color:value===v?"#151616":"#c9ced3",fontWeight:value===v?700:500}}>{t}</button>))}
+  </div></div>);
+const hLabel={hComb:"combined score, √places × diversity (as in the printed models)",hCount:"number of places",hDiv:"diversity index"}[hKey];
+return(<div style={{position:"relative",width:"100%",height:"100%",background:"#0f1112"}}>
+  <div ref={cRef} style={{width:"100%",height:"100%"}}/>
+  <div style={{position:"absolute",left:10,top:10,background:"rgba(15,17,18,0.88)",border:"1px solid #2a2e31",borderRadius:6,padding:"8px 10px",display:"flex",flexDirection:"column",gap:5,zIndex:5}}>
+    <Seg label="View" value={view3d} set={setView3d} opts={[[true,"3D"],[false,"2D"]]}/>
+    <Seg label="Height" value={hKey} set={setHKey} opts={[["hComb","Combined"],["hCount","Places"],["hDiv","Diversity"]]} disabled={!view3d}/>
+    <Seg label="Colour" value={mono} set={setMono} opts={[[false,"Diversity"],[true,"Model red"]]} disabled={!view3d}/>
+    <Seg label="Base" value={base} set={setBase} opts={[["dark","Dark"],["sat","Satellite"]]}/>
+    <div style={{display:"flex",alignItems:"center",gap:6,opacity:view3d?1:0.4}}>
+      <span style={{width:44,fontSize:8,color:"#8a9298",textTransform:"uppercase",letterSpacing:"0.8px"}}>Scale</span>
+      <input type="range" min="200" max="1500" step="50" value={maxH} disabled={!view3d} onChange={e=>setMaxH(+e.target.value)} style={{width:120}}/>
+    </div>
+  </div>
+  <div style={{position:"absolute",left:10,bottom:10,maxWidth:300,background:"rgba(15,17,18,0.88)",border:"1px solid #2a2e31",borderRadius:6,padding:"7px 10px",pointerEvents:"none",zIndex:5}}>
+    {!(view3d&&mono)&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+      <span style={{fontSize:8,color:"#8a9298"}}>Low</span>
+      <div style={{width:110,height:8,borderRadius:2,background:POSTER_GRADIENT}}/>
+      <span style={{fontSize:8,color:"#8a9298"}}>High</span>
+      <span style={{fontSize:8,color:"#c9ced3",marginLeft:4}}>colour = cell diversity, by rank</span>
+    </div>}
+    {view3d&&<div style={{fontSize:8.5,color:"#c9ced3",lineHeight:1.45}}>Height = {hLabel}. The tallest cell is drawn at {maxH} m; heights are relative, not physical.</div>}
+    <div style={{fontSize:8.5,color:"#8a9298",lineHeight:1.45,marginTop:2}}>{grid?grid.nCells.toLocaleString():0} of {(GRID_N*GRID_N).toLocaleString()} cells hold at least one place. Click the map to add a centrality zone. Right-drag to rotate.</div>
+  </div>
+</div>);
 }
 
 function DashDiversity({data}){
@@ -2871,6 +2976,18 @@ const maxRingDiv=Math.max(...rings.map(r=>r.div),0.0001);
 
 const topCats=React.useMemo(()=>Object.entries(catCount).sort((a,b)=>b[1]-a[1]).slice(0,10),[catCount]);
 
+// Centrality zones: circles the reader drops on the map (up to 3), as on the posters.
+const MAX_ZONES=3;
+const[zones,setZones]=useState([]);
+useEffect(()=>{setZones([]);},[data]);
+const addZone=useCallback(pt=>setZones(z=>z.length>=MAX_ZONES?z:[...z,{...pt,r:250}]),[]);
+const zoneStats=React.useMemo(()=>zones.map(z=>{
+  const counts={};const types=new Set();let n=0;
+  places.forEach(d=>{if(metresBetween(z.lat,z.lng,d[0],d[1])<=z.r){const c=d[2]||"uncategorized";counts[c]=(counts[c]||0)+1;types.add(d[4]||"unknown");n++;}});
+  const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  return{n,types:types.size,cats:Object.keys(counts).length,div:divScore(counts,n),top:top?top[0]:null};
+}),[zones,places]);
+
 const InfoRow=({label,value})=>(<div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:4}}>
   <span style={{fontSize:10,color:"#9aa1a8"}}>{label}</span>
   <span style={{fontSize:11,fontWeight:600,color:"#dde2e6",fontFamily:"'Courier New',monospace"}}>{value}</span></div>);
@@ -2881,18 +2998,8 @@ return(
 
   {/* LEFT — diversity grid map (whole-map scale) */}
   <div style={{flex:1,minWidth:0,minHeight:0}}>
-    <Pnl t="Diversity grid — Shannon index per ~110 m cell" tip="The study area (3 km across, centred on the stadium) is split into a grid. Each cell is coloured by the Shannon diversity of the place categories inside it — the same index used across the Observatory. Brighter = a more varied mix of activity. Hover a cell for its value.">
-      <div style={{position:"relative",width:"100%",height:"100%"}}>
-        <DiversityGrid meta={meta} places={places}/>
-        <div style={{position:"absolute",left:10,bottom:10,background:"rgba(6,21,16,0.86)",border:"1px solid rgba(92,184,167,0.3)",borderRadius:5,padding:"6px 9px",pointerEvents:"none",zIndex:5}}>
-          <div style={{fontSize:8,color:"rgba(92,184,167,0.7)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:4}}>Cell Diversity</div>
-          <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <span style={{fontSize:8,color:"#8a9298"}}>Low</span>
-            <div style={{width:96,height:8,borderRadius:2,background:"linear-gradient(to right,rgb(68,1,84),rgb(59,82,139),rgb(33,145,140),rgb(94,201,98),rgb(253,231,37))"}}/>
-            <span style={{fontSize:8,color:"#8a9298"}}>High</span>
-          </div>
-        </div>
-      </div>
+    <Pnl t="Diversity grid, 70 × 70 cells of about 43 m" tip="The 3 km square centred on the stadium is split into 70 × 70 cells, the grid of the 3D-printed models. Each cell is scored from the places inside it. Colour shows the diversity of place categories (the index used across the Observatory). In 3D the height shows the combined score of the printed models: √places × diversity, rescaled so that every occupied cell has a base height. Hover a cell for its values.">
+      <DiversityIso meta={meta} places={places} zones={zones} onAddZone={addZone}/>
     </Pnl>
   </div>
 
@@ -2912,6 +3019,33 @@ return(
       <InfoRow label="Unique Types" value={uniqueTypes.toLocaleString()}/>
     </div>
 
+    {/* Centrality zones dropped on the map */}
+    <div style={{background:"#151616",borderRadius:6,flexShrink:0,padding:"8px 12px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+        <span style={{fontSize:10,fontWeight:600,color:"#b4bac0"}}>Centrality zones</span>
+        {zones.length>0&&<button onClick={()=>setZones([])} style={{fontSize:9,color:"#9aa1a8",background:"transparent",border:"none",cursor:"pointer",fontFamily:"var(--font)"}}>clear all</button>}
+      </div>
+      {zones.length===0&&<div style={{fontSize:9.5,color:"#6b7279",marginTop:4,lineHeight:1.5}}>Click the map to drop a circle on a cluster. Up to {MAX_ZONES} zones. Each one reports the places, types and diversity inside it.</div>}
+      {zones.map((z,i)=>{const st=zoneStats[i];return(
+        <div key={i} style={{marginTop:7,paddingTop:6,borderTop:"1px solid #2a2e31"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{width:9,height:9,borderRadius:"50%",border:`2px dashed ${ZONE_COLORS[i]}`,flexShrink:0}}/>
+            <span style={{fontSize:10,fontWeight:600,color:"#dde2e6"}}>Zone {i+1}</span>
+            <span style={{fontSize:9,color:"#8a9298",fontFamily:"'Courier New',monospace"}}>r = {z.r} m</span>
+            <span style={{flex:1}}/>
+            {[["−",-50],["+",50]].map(([t,dv])=>(<button key={t} title="Change radius by 50 m" onClick={()=>setZones(zs=>zs.map((q,j)=>j===i?{...q,r:Math.max(100,Math.min(750,q.r+dv))}:q))}
+              style={{width:18,height:18,lineHeight:"14px",fontSize:12,color:"#c9ced3",background:"#1e2123",border:"1px solid #3a3f44",borderRadius:3,cursor:"pointer",padding:0}}>{t}</button>))}
+            <button title="Remove zone" onClick={()=>setZones(zs=>zs.filter((_,j)=>j!==i))}
+              style={{width:18,height:18,lineHeight:"14px",fontSize:11,color:"#c9ced3",background:"#1e2123",border:"1px solid #3a3f44",borderRadius:3,cursor:"pointer",padding:0}}>×</button>
+          </div>
+          <InfoRow label="Places" value={st.n.toLocaleString()}/>
+          <InfoRow label="Unique types" value={st.types.toLocaleString()}/>
+          <InfoRow label="Categories" value={st.cats+" / 16"}/>
+          <InfoRow label="Diversity index" value={st.n?st.div.toFixed(2):"—"}/>
+          {st.top&&<InfoRow label="Most common" value={st.top}/>}
+        </div>);})}
+    </div>
+
     {/* Distance-ring diversity (centrality scale) */}
     <div style={{background:"#151616",borderRadius:6,flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"6px 12px",borderBottom:"1px solid #2a2e31",flexShrink:0}}>
@@ -2923,7 +3057,7 @@ return(
           <div key={r.label} style={{display:"flex",alignItems:"center",gap:7,padding:"2px 0"}}>
             <span style={{width:62,flexShrink:0,fontSize:8.5,color:"#8a9298",fontFamily:"'Courier New',monospace",textAlign:"right"}}>{r.label}</span>
             <div style={{flex:1,height:13,background:"#1e2123",borderRadius:2,overflow:"hidden"}}>
-              <div style={{width:`${Math.round(t*100)}%`,height:"100%",background:`rgb(${viridis(t)})`,transition:"width 0.3s"}}/>
+              <div style={{width:`${Math.round(t*100)}%`,height:"100%",background:`rgb(${posterRamp(t)})`,transition:"width 0.3s"}}/>
             </div>
             <span style={{width:30,flexShrink:0,fontSize:9,color:r.total?"#cfd3d6":"#555",fontFamily:"'Courier New',monospace",textAlign:"right"}}>{r.total?r.div.toFixed(2):"—"}</span>
           </div>);})}
