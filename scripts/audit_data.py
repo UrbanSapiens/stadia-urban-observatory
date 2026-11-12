@@ -21,11 +21,48 @@ Checks performed:
   5. Names that look like raw coordinates.
   6. City fields that look scrambled (contain coordinates, or repeat the country).
   7. index.json entries vs per-stadium data/<slug>.json m-block consistency.
+  8. Opening year outside YEAR_MIN..YEAR_MAX (ERROR); count of venues with no year.
+  9. Country field vs the country the coordinates fall in (Natural Earth 1:110m
+     outlines in data/geo/). Coastal and island venues can fall outside the
+     coarse outlines; those are skipped, not flagged.
 """
 import json, math, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
+GEO = os.path.join(DATA, "geo", "ne_110m_countries.geojson")
+YEAR_MIN, YEAR_MAX = 1850, 2026   # an opening year outside this range is a data error
+# Natural Earth names -> the names used in this dataset (same table as index.html)
+GEO_ALIASES = {
+    "United States of America": "United States", "Korea": "South Korea", "S. Korea": "South Korea",
+    "Czech Rep.": "Czech Republic", "Bosnia and Herz.": "Bosnia and Herzegovina",
+    "Dominican Rep.": "Dominican Republic", "Central African Rep.": "Central African Republic",
+    "Dem. Rep. Congo": "Democratic Republic of Congo", "Congo": "Republic of the Congo",
+    "S. Sudan": "South Sudan", "Côte d'Ivoire": "Ivory Coast", "Eq. Guinea": "Equatorial Guinea",
+    "Lao PDR": "Laos", "Macedonia": "North Macedonia",
+}
+
+
+def _in_ring(x, y, ring):
+    inside, j = False, len(ring) - 1
+    for i in range(len(ring)):
+        xi, yi = ring[i]; xj, yj = ring[j]
+        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+def country_at(lng, lat, features):
+    """Country whose outline contains the point, or None (sea, or coarse coastline)."""
+    for f in features:
+        g = f["geometry"]
+        polys = [g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]
+        for poly in polys:
+            if _in_ring(lng, lat, poly[0]) and not any(_in_ring(lng, lat, h) for h in poly[1:]):
+                n = f["properties"]["NAME"]
+                return GEO_ALIASES.get(n, n)
+    return None
 
 WC_HOSTS = {
     "1930": ["Uruguay"], "1934": ["Italy"], "1938": ["France"], "1950": ["Brazil"],
@@ -86,6 +123,8 @@ def year_of(ev, key):
 def main():
     idx = json.load(open(os.path.join(DATA, "index.json")))
     flags = []
+    geo = json.load(open(GEO))["features"]
+    no_year = 0
 
     def flag(sev, slug, msg):
         flags.append((sev, slug, msg))
@@ -136,6 +175,20 @@ def main():
         elif country and country in city:
             flag("INFO", slug, "city field already contains the country (displays duplicated)")
 
+        # 8. opening year
+        oy = s.get("openingYear")
+        if oy is None or oy == "":
+            no_year += 1
+        elif not (YEAR_MIN <= int(oy) <= YEAR_MAX):
+            flag("ERROR", slug, f"openingYear={oy} is outside {YEAR_MIN}-{YEAR_MAX}; set it to null or correct it from a source")
+
+        # 9. country vs coordinates
+        here = country_at(s["lng"], s["lat"], geo)
+        if not country:
+            flag("WARN", slug, "no country recorded" + (f"; coordinates fall in {here}" if here else ""))
+        elif here and here != country:
+            flag("WARN", slug, f"country is {country!r} but the coordinates fall in {here!r} (check; near a border the coarse outline can be wrong)")
+
         # 7. index vs stadium file consistency
         path = os.path.join(DATA, slug + ".json")
         if not os.path.exists(path):
@@ -162,7 +215,8 @@ def main():
     for sev, slug, msg in flags:
         counts[sev] = counts.get(sev, 0) + 1
         print(f"{sev:6s} {slug:45s} {msg}")
-    print(f"\n{len(idx)} stadiums checked — " +
+    print(f"\n{no_year} of {len(idx)} venues have no opening year (they are left out of the timeline)")
+    print(f"{len(idx)} stadiums checked — " +
           ", ".join(f"{v} {k}" for k, v in sorted(counts.items(), key=lambda x: order[x[0]])))
     return 1 if counts.get("ERROR") else 0
 

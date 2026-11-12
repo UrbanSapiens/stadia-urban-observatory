@@ -93,6 +93,43 @@ grounds (SunTrust Park, RingCentral Coliseum, SeatGeek Stadium).
 corrected JSON for all rows (0 diffs), and America First Field's name/city/
 capacity/opening year are filled.
 
+## Fixed on 2026-11-12
+
+Script: `scripts/fix_2026_11_12.py` (run once). No value was filled from memory.
+
+**Country set from coordinates** (point-in-polygon against the Natural Earth
+outlines in `data/geo/`): BC Place, BMO Field and Saputo Stadium were "United
+States", now Canada. Baba Yara, Cape Coast and Tamale (Ghana), Bingu National
+(Malawi), Tundavala and Ombaka (Angola) had no country. Pentecost Martyrs
+Stadium was "Republic of the Congo"; it is in Kinshasa, Democratic Republic of
+Congo. The site now counts 58 countries (was 55).
+
+**Impossible opening years set to null**, not replaced: Nilton Santos (1565),
+Estadio de Malabo (1827), City Ground (1836), The Gabba (2031). 101 of 247
+venues now have no opening year and are left out of the timeline; the timeline
+says so.
+
+**Junk city fields set to null**: BC Place ("82"), Tamale ("Cambridge"),
+Senegal National Wrestling Arena (Riyadh coordinates), City Ground (a Miami
+address).
+
+**Audit extended**: opening year outside 1850 to 2026 is an ERROR; a missing
+country, or a country that disagrees with the coordinates, is a WARN (Stade de
+Genève is a known false alarm from the coarse border).
+
+**Dashboard**: keyless basemap (OpenFreeMap) after CARTO began returning "API
+KEY REQUIRED" tiles; country outlines served from the repo; landing numbers
+derived from the data; descriptive headlines with no claims about walkability
+or isolation; "walking" and "GPS" labels corrected to network distance and
+place counts; unfinished tabs hidden; timeline sized by number of venues.
+
+**Collection dates hidden** (`SHOW_COLLECTION_DATES=false` in index.html). The
+`collectionDate` in every file is the modification date of the source workbook,
+not a collection date, and in 29 of the 32 two-pass venues more than 95% of the
+newer pass's points are identical to the older pass (the newer pass is the
+cleaned version of the same collection). The files and the `collections`
+arrays are untouched.
+
 ## Open findings (need a decision, not auto-fixable)
 
 - **8 stadiums still with no event recorded** — left for manual review because
@@ -107,5 +144,6 @@ capacity/opening year are filled.
   `camping-world-stadium`) — same venue under two `master_path` values
   ("MLS Stadium/…" and "United States/…"). Left in place; delete one of each
   if you want the master deduplicated.
-- `senegal-national-wrestling-arena` has Riyadh coordinate junk in its city
-  field (bad scrape).
+- 101 venues have no opening year, 58 no capacity, about 60 no city. Fill from a
+  cited source.
+- Real collection dates are not recorded anywhere in the data files.

@@ -13,7 +13,7 @@ A sibling of the [Goiás Violence Observatory](https://github.com/UrbanSapiens/g
 
 ## What's here
 
-**247 unique venues across 55 countries**, held in 279 per-stadium JSON files
+**247 unique venues across 58 countries**, held in 279 per-stadium JSON files
 under `data/` — 32 venues were surveyed twice, and both passes are kept so the
 dashboard can show the same ground at two points in time.
 
@@ -33,6 +33,7 @@ data/<slug>.json    one file per stadium; the m block is the source of truth
 data/index.json     roll-up consumed by the build, not by the live site
 scripts/            audit_data.py, sync_index.py
 Stadia_database.xlsx  spreadsheet mirror of the same records
+data/geo/            country outlines (Natural Earth 1:110m, public domain)
 DATA_AUDIT.md       correction procedure and log
 ```
 
@@ -58,7 +59,9 @@ The audit checks event claims against ground truth (the claimed World Cup, Euro,
 or Olympic year must exist and match the stadium's country; for World Cups
 2006–2018 the venue must also sit within 70 km of a real host city), duplicate
 venues within 300 m, placeholder metrics, coordinate junk in name and city
-fields, and consistency between the index and the per-stadium files.
+fields, opening years outside 1850 to 2026, the country field against the
+country the coordinates fall in, and consistency between the index and the
+per-stadium files.
 
 That procedure exists because the original event data was scrambled — rows
 shifted in the source spreadsheet — and produced false claims on the live site.
