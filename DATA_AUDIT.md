@@ -130,6 +130,18 @@ newer pass's points are identical to the older pass (the newer pass is the
 cleaned version of the same collection). The files and the `collections`
 arrays are untouched.
 
+**Collection dates recovered (same day, later).** `scripts/extract_collection_dates.py`
+reads the creation stamp stored inside each original 2020 to 2024 workbook
+(`docProps/core.xml`), which the collection run wrote and which later Excel
+re-saves do not change. `scripts/apply_collection_dates.py` writes it into
+`collectionDate`. 187 of 247 venues have a date (73 in 2020, 103 in 2021, 11
+in 2024); the other 60 are null and show no date. The table is
+`outputs/collection_dates.csv`. The date line is shown again
+(`SHOW_COLLECTION_DATES=true`); the pass switcher stays off
+(`SHOW_PASS_SWITCHER=false`). Note: `generate_stadium_json.py` in
+`~/Desktop/observatory` still stamps the file modification time; if it is
+re-run, run the two scripts above afterwards.
+
 ## Open findings (need a decision, not auto-fixable)
 
 - **8 stadiums still with no event recorded** — left for manual review because
