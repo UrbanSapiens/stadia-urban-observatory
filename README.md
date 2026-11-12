@@ -28,44 +28,38 @@ intersection density, and block length.
 ## Layout
 
 ```
-index.html          the dashboard (data embedded as the IX array)
-data/<slug>.json    one file per stadium; the m block is the source of truth
-data/index.json     roll-up consumed by the build, not by the live site
-scripts/            audit_data.py, sync_index.py
-Stadia_database.xlsx  spreadsheet mirror of the same records
-data/geo/            country outlines (Natural Earth 1:110m, public domain)
-DATA_AUDIT.md       correction procedure and log
+index.html            the site: landing, map and venue pages (reads agg/ only)
+agg/index.json        venue list, study distributions, atlas plates
+agg/<slug>.json       one venue as counts: per grid cell and kind, per distance ring
+classic.html          the previous dashboard (reads data/ and its embedded IX array)
+data/<slug>.json      per-place working records; the m block is the source of truth
+data/geo/             country outlines (Natural Earth 1:110m, public domain)
+scripts/              audit, sync, aggregate build, collection dates, architects
+outputs/              collection_dates.csv, architects_wikidata.csv (with sources)
+Stadia_database.xlsx  spreadsheet mirror of the venue records
+DATA_AUDIT.md         correction procedure and log
 ```
 
-The raw survey archive — PDFs, satellite imagery, shapefiles, GraphML networks,
-roughly 28 GB — is kept outside the repository. Only derived records are
-versioned here.
+Pages have addresses: `#/map`, `#/map/<slug>`, `#/venue/<slug>`.
 
 ## Working on the data
 
 Read [`DATA_AUDIT.md`](DATA_AUDIT.md) first. The short version:
 
 ```bash
-python3 scripts/audit_data.py    # must exit clean — fix every ERROR
-python3 scripts/sync_index.py    # propagates into data/index.json AND index.html
-python3 scripts/audit_data.py    # re-run, expect 0 ERROR
+python3 scripts/audit_data.py        # must exit clean: fix every ERROR
+python3 scripts/sync_index.py        # data/index.json and the IX array in classic.html
+python3 scripts/build_site_data.py   # agg/: what the site shows; stops if a sentence is not true
+python3 scripts/audit_data.py        # re-run, expect 0 ERROR
 ```
 
-**The live site does not fetch `data/index.json`.** It reads the `IX` array
-embedded in `index.html`. Skipping `sync_index.py` leaves the public site
-showing stale numbers, so `data/` and `index.html` must be committed together.
+Commit `data/`, `agg/` and `classic.html` together. The site reads `agg/`, so a
+data change that is not followed by `build_site_data.py` does not reach it.
 
-The audit checks event claims against ground truth (the claimed World Cup, Euro,
-or Olympic year must exist and match the stadium's country; for World Cups
-2006–2018 the venue must also sit within 70 km of a real host city), duplicate
-venues within 300 m, placeholder metrics, coordinate junk in name and city
-fields, opening years outside 1850 to 2026, the country field against the
-country the coordinates fall in, and consistency between the index and the
-per-stadium files.
-
-That procedure exists because the original event data was scrambled — rows
-shifted in the source spreadsheet — and produced false claims on the live site.
-The corrections are logged in `DATA_AUDIT.md`.
+`build_site_data.py` writes every sentence shown at the top of a venue page and
+re-derives each one from the records before saving. The audit checks event
+claims against ground truth, duplicate venues, placeholder metrics, impossible
+opening years, and the country field against the coordinates.
 
 ## Author
 

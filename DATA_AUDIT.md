@@ -142,6 +142,28 @@ in 2024); the other 60 are null and show no date. The table is
 `~/Desktop/observatory` still stamps the file modification time; if it is
 re-run, run the two scripts above afterwards.
 
+## 2026-11-12, new site on aggregates
+
+`index.html` is now the new site (landing, map, venue pages). It reads only
+`agg/`, written by `scripts/build_site_data.py`: counts per 43 m cell and kind,
+counts per 150 m ring, top types, summary numbers and the lede sentences, each
+re-derived from the records before saving (996 sentences on this build). No
+place coordinates are in `agg/`. The previous dashboard is `classic.html`;
+`sync_index.py` now writes its IX array there.
+
+**Add `python3 scripts/build_site_data.py` to the procedure above, after the
+sync.** Without it the site keeps the old numbers.
+
+Architects come from Wikidata (`scripts/fetch_architects.py`, property P84 of
+the item matched to each venue's coordinates in the paper project), so they
+describe the current building. 79 venues have one; the rest show none. The
+`architect` field inside `data/*.json` is scrambled (for example the Beijing
+National Stadium credit on six venues) and is not used.
+
+Place counts on the site are records inside the 1.5 km circle, recounted for
+every venue. They can be a few lower than the `places` value in
+`data/index.json`, which includes records just outside the circle.
+
 ## Open findings (need a decision, not auto-fixable)
 
 - **8 stadiums still with no event recorded** — left for manual review because

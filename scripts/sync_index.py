@@ -21,7 +21,7 @@ import json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
-HTML = os.path.join(ROOT, "index.html")
+HTML = os.path.join(ROOT, "classic.html")   # the previous dashboard; the new site reads agg/ (build_site_data.py)
 
 IDENTITY_FIELDS = ["name", "city", "country", "capacity", "openingYear", "primarySport"]
 
