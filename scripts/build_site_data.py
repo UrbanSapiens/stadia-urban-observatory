@@ -28,7 +28,10 @@ ARCHITECTS = ROOT / "outputs" / "architects_wikidata.csv"   # scripts/fetch_arch
 GRID_N = 70          # cells per side over the 3 km square (grid of the printed models)
 RADIUS_M = 1500
 RING_M = 150         # straight-line ring width
-N_TYPES = 10         # most common types kept per venue
+N_TYPES = 10         # most common types kept per venue, overall
+N_TYPES_PER_KIND = 8 # and within each kind, so the type list can follow the selected kind
+MIX_MIN_PLACES = 5   # a cell needs this many places before its mix of kinds is computed
+MIX_MIN_CELLS = 10   # a venue needs this many such cells before it gets a venue-level mix
 N_ATLAS = 24         # venues drawn on the landing atlas, at even steps by place count
 YEAR_MIN, YEAR_MAX = 1890, 2026   # opening years outside this range are treated as unreliable
 K = 111320.0         # metres per degree of latitude
@@ -66,6 +69,11 @@ def records(doc):
     return out
 
 
+def simpson(counts):
+    n = sum(counts)
+    return 1 - sum(x * (x - 1) for x in counts) / (n * (n - 1)) if n > 1 else 0.0
+
+
 def cell_of(dx, dy):
     cell_m = 2 * RADIUS_M / GRID_N
     col = min(GRID_N - 1, max(0, int((dx + RADIUS_M) / cell_m)))
@@ -86,8 +94,15 @@ def aggregate(entry, doc, recs, rank, n_all, architect):
         types[(r[4], r[3])] = types.get((r[4], r[3]), 0) + 1
     cat_order = [c for c, _ in sorted(cats.items(), key=lambda kv: (-kv[1], kv[0]))]
     cidx = {c: i for i, c in enumerate(cat_order)}
-    top_types = sorted(types.items(), key=lambda kv: (-kv[1], kv[0]))[:N_TYPES]
+    ranked_types = sorted(types.items(), key=lambda kv: (-kv[1], kv[0]))
+    # Types the page can list: the overall top, plus the top of each kind.
+    keep = [k for k, _ in ranked_types[:N_TYPES]]
+    by_kind = {c: [k for k, _ in ranked_types if k[1] == c][:N_TYPES_PER_KIND] for c in cat_order}
+    for c in cat_order:
+        keep += [k for k in by_kind[c] if k not in keep]
+    top_types = [(k, types[k]) for k in keep]
     tidx = {k: i for i, (k, _) in enumerate(top_types)}
+    kind_n_types = [sum(1 for k in types if k[1] == c) for c in cat_order]
     grid = [dict() for _ in cat_order]
     tgrid = [dict() for _ in top_types]
     for dx, dy, _, c, t, _ in recs:
@@ -102,6 +117,13 @@ def aggregate(entry, doc, recs, rank, n_all, architect):
     for r in recs:
         rings[min(n_rings - 1, int(r[2] // RING_M))] += 1
     ring_density = [round(c / (math.pi * (((i + 1) * RING_M) ** 2 - (i * RING_M) ** 2) / 1e6), 1) for i, c in enumerate(rings)]
+    # Mix of kinds inside a cell: Simpson index, 1 - sum n(n-1) / N(N-1). Quantity is not in it.
+    per_cell = {}
+    for ci, g in enumerate(grid):
+        for k, c in g.items():
+            per_cell.setdefault(k, [0] * len(cat_order))[ci] += c
+    mixes = [(simpson(c), sum(c)) for c in per_cell.values() if sum(c) >= MIX_MIN_PLACES]
+    cell_mix = round(sum(v * w for v, w in mixes) / sum(w for _, w in mixes), 3) if len(mixes) >= MIX_MIN_CELLS else None
     lin = [r[2] for r in recs]
     net = [r[5] for r in recs if r[5] is not None]
     med_lin = round(statistics.median(lin)) if lin else None
@@ -134,7 +156,11 @@ def aggregate(entry, doc, recs, rank, n_all, architect):
             "capacity": entry.get("capacity"),
             "n": n, "rank": rank, "cats": [[c, cats[c]] for c in cat_order],
             "grid": [flat(g) for g in grid],
+            # types: every type the page can list. topTypes / kindTypes index into it.
             "types": [[t, c, v] for (t, c), v in top_types], "typeGrid": [flat(g) for g in tgrid],
+            "topTypes": list(range(min(N_TYPES, len(top_types)))),
+            "kindTypes": [[tidx[k] for k in by_kind[c]] for c in cat_order], "kindNTypes": kind_n_types,
+            "cellMix": cell_mix, "cellMixCells": len(mixes),
             "rings": rings, "ringDensity": ring_density, "medLin": med_lin, "medNet": med_net,
             "net": {"intersections": s.get("numberOfIntersections"),
                     "block": round(s["avgEdgeLength"], 1) if s.get("avgEdgeLength") else None,
@@ -158,6 +184,10 @@ def validate(agg, doc):
     assert sum(agg["rings"]) == agg["n"], (slug, "ring total")
     for (t, c, v), g in zip(agg["types"], agg["typeGrid"]):
         assert sum(g[1::2]) == v, (slug, "type grid", t)
+    for ci, idxs in enumerate(agg["kindTypes"]):
+        assert all(agg["types"][i][1] == agg["cats"][ci][0] for i in idxs), (slug, "kind types")
+        counts = [agg["types"][i][2] for i in idxs]
+        assert counts == sorted(counts, reverse=True), (slug, "kind types order")
     if agg["n"] >= 20:
         top = agg["cats"][0][0]
         assert sum(1 for x in inside if x[1] == top) == agg["cats"][0][1], (slug, "top category")
@@ -192,10 +222,19 @@ def main():
         a = aggregate(x, docs[s], recs[s], rank[s], len(ix), arch.get(s))
         validate(a, docs[s])
         assert not any(k in a for k in ("p", "places", "points")), "raw records must not be published"
-        a["study"] = {"places": a["n"], "medianDist": x.get("medianDist"),
+        a["study"] = {"places": a["n"], "cellMix": a["cellMix"], "medianDist": x.get("medianDist"),
                       "intersections": x.get("intersections"), "blockLength": x.get("blockLength")}
         aggs[s] = a
         n_lede += len(a["lede"])
+    # Rank of each venue in each distance ring (1 = most places per km2 in that ring).
+    n_rings = RADIUS_M // RING_M
+    for i in range(n_rings):
+        order = sorted(aggs, key=lambda s: (-aggs[s]["ringDensity"][i], s))
+        for pos, s in enumerate(order):
+            aggs[s].setdefault("ringRank", [0] * n_rings)[i] = pos + 1
+    for s, a in aggs.items():
+        best = min(range(n_rings), key=lambda i: a["ringRank"][i])
+        assert sum(1 for t in aggs.values() if t["ringDensity"][best] > a["ringDensity"][best]) < a["ringRank"][best], (s, "ring rank")
         (OUT / f"{s}.json").write_text(json.dumps(a, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     ordered = sorted(ix, key=lambda x: (len(recs[x["slug"]]), x["slug"]))
@@ -209,12 +248,14 @@ def main():
                 total[k] = total.get(k, 0) + c
         atlas.append({"slug": a["slug"], "cells": flat(total)})
     index = {
-        "cfg": {"gridN": GRID_N, "radius": RADIUS_M, "ring": RING_M, "yearMin": YEAR_MIN, "yearMax": YEAR_MAX},
+        "cfg": {"gridN": GRID_N, "radius": RADIUS_M, "ring": RING_M, "yearMin": YEAR_MIN, "yearMax": YEAR_MAX,
+                "mixMinPlaces": MIX_MIN_PLACES},
         # [slug, name, country, lat, lng, openingYear|null, programme, places, rank]
         "venues": [[x["slug"], x["name"], x.get("country") or "", x["lat"], x["lng"], reliable_year(x.get("openingYear")),
                     PROGRAMME[x.get("event") or ""], aggs[x["slug"]]["n"], rank[x["slug"]]]
                    for x in sorted(ix, key=lambda x: x["name"].lower())],
         "study": {"places": sorted(a["n"] for a in aggs.values()),
+                  "cellMix": sorted(a["cellMix"] for a in aggs.values() if a["cellMix"] is not None),
                   "medianDist": sorted(x["medianDist"] for x in ix if x.get("medianDist")),
                   "intersections": sorted(x["intersections"] for x in ix if x.get("intersections")),
                   "blockLength": sorted(x["blockLength"] for x in ix if x.get("blockLength"))},

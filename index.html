@@ -41,7 +41,7 @@ body.failed #fail{display:block}body.failed #home,body.failed #venue{display:non
 .bar a{text-decoration:none}.bar a:hover{text-decoration:underline;text-underline-offset:4px}
 #hero{position:relative;height:100vh;min-height:560px;overflow:hidden;border-bottom:1px solid var(--rule)}
 #map{position:absolute;inset:0;background:#0b0b0b}
-#map .maplibregl-ctrl-top-right{top:52px}
+#map .maplibregl-ctrl-bottom-left{z-index:4}
 .hero-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to top,rgba(17,17,17,.94) 0%,rgba(17,17,17,.55) 32%,rgba(17,17,17,0) 62%);transition:opacity .6s}
 .hero-copy{position:absolute;left:var(--gut);right:var(--gut);bottom:clamp(28px,6vh,64px);display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:clamp(20px,4vw,64px);align-items:end;transition:opacity .5s,transform .6s}
 .hero-copy h1{font-weight:600;font-size:clamp(44px,9.4vw,152px);line-height:.88;letter-spacing:-.045em;margin:0}
@@ -68,6 +68,14 @@ body.in-map .mapbar{display:flex}
 #qres a{display:flex;justify-content:space-between;gap:10px;padding:8px 14px;text-decoration:none;font-size:13px;border-top:1px solid var(--rule)}
 #qres a:hover,#qres a:focus{background:#1c1c1c}
 #qres a span{color:var(--mid);font-size:12px}
+.clist{position:absolute;right:var(--gut);top:64px;z-index:5;width:min(320px,calc(100% - 2*var(--gut)));max-height:calc(100% - 64px - 2*var(--gut));display:flex;flex-direction:column;background:rgba(17,17,17,.92);border:1px solid var(--line)}
+.clist header{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--rule)}
+.clist header b{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.clist header span{color:var(--mid)}
+.clist div{overflow:auto}
+.clist a{display:flex;justify-content:space-between;gap:12px;padding:8px 16px;text-decoration:none;font-size:13.5px;border-bottom:1px solid var(--rule)}
+.clist a:hover{background:#1c1c1c;color:var(--accent)}
+.clist a span{font-family:var(--mono);font-size:11.5px;color:var(--mid);white-space:nowrap}
 .card{position:absolute;right:var(--gut);bottom:var(--gut);z-index:5;width:min(340px,calc(100% - 2*var(--gut)));background:rgba(17,17,17,.92);border:1px solid var(--line);padding:18px}
 .card h3{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1.05;margin:6px 0 10px}
 .card dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0 0 14px;font-size:13px}
@@ -112,8 +120,9 @@ h2{font-weight:600;font-size:clamp(30px,4.6vw,68px);line-height:.95;letter-spaci
 .four .mono{color:var(--mid)}
 .four h3{font-size:clamp(22px,2.4vw,34px);font-weight:600;letter-spacing:-.03em;margin:10px 0 8px}
 .four p{margin:0;color:var(--mid);font-size:15px}
-.limits{display:grid;grid-template-columns:1fr 1fr;gap:14px clamp(24px,4vw,64px);color:#c9c6bd;font-size:15px}
-.limits p{margin:0}
+.fine{padding:0 var(--gut) 34px;display:grid;grid-template-columns:120px minmax(0,1fr);gap:18px;color:var(--dim);font-size:12.5px;line-height:1.55}
+.fine .mono{color:var(--mid)}
+.fine p{margin:0;max-width:110ch}
 .end{padding:clamp(48px,8vw,120px) var(--gut);display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap}
 .end h2{max-width:14ch}
 footer{padding:22px var(--gut) 40px;border-top:1px solid var(--rule);display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;color:var(--mid);font-size:13px}
@@ -128,9 +137,16 @@ body.scrolled .vbar{background:rgba(17,17,17,.95);border-bottom-color:var(--rule
 .crumbs .sep{color:var(--dim)}
 .navbtns{display:flex;gap:8px}
 .top{position:relative;height:100vh;min-height:600px;overflow:hidden;border-bottom:1px solid var(--rule)}
-.sat{position:absolute;left:50%;top:50%;transform-origin:0 0;will-change:transform;transition:transform 2.4s cubic-bezier(.16,.7,.2,1)}
-.sat.live{transition:none}
+.sat{position:absolute;left:50%;top:50%;transform-origin:0 0;will-change:transform}
 .sat img{position:absolute;width:256px;height:256px;display:block}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes fadeup{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.top.arrive .shade{animation:fadein .9s ease both}
+.top.arrive .topcopy{animation:fadeup .9s .15s ease both}
+.info{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border:1px solid var(--line);border-radius:50%;font-family:var(--mono);font-size:10px;color:var(--mid);cursor:help;vertical-align:middle;margin-left:10px;position:relative;letter-spacing:0;text-transform:none}
+.info:hover,.info:focus{border-color:#fff;color:#fff;outline:none}
+.info::after{content:attr(data-info);position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);width:min(320px,70vw);background:#fff;color:#111;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.4;letter-spacing:0;padding:10px 12px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:30;text-align:left}
+.info:hover::after,.info:focus::after{opacity:1}
 .shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(17,17,17,.96) 0%,rgba(17,17,17,.72) 34%,rgba(17,17,17,.18) 70%,rgba(17,17,17,.38) 100%)}
 .topcopy{position:absolute;left:var(--gut);right:var(--gut);bottom:clamp(26px,5vh,56px);display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(20px,4vw,64px);align-items:end}
 .credit{position:absolute;right:var(--gut);top:64px;color:rgba(255,255,255,.55);font-size:10px}
@@ -163,7 +179,8 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 .cats button[aria-pressed="true"] .nm{color:var(--accent)}
 .cats button[aria-pressed="true"] .fill{background:var(--accent)}
 .cats button.off,.types button.off{opacity:.35}
-.typeshead{color:var(--mid);margin:clamp(10px,1.8vh,22px) 0 6px}
+.typeshead{color:var(--mid);margin:clamp(10px,1.8vh,22px) 0 6px;display:flex;justify-content:space-between;gap:10px}
+.typeshead b{color:var(--accent);font-weight:500}
 .types{display:grid;grid-template-columns:1fr 1fr;gap:0 26px}
 .types button{display:flex;justify-content:space-between;gap:12px;padding:clamp(3px,.55vh,6px) 0;font-size:13.5px}
 .types button span:last-child{font-family:var(--mono);font-size:11.5px;color:var(--mid)}
@@ -186,6 +203,7 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 .seg button[aria-pressed="true"]{background:var(--accent);color:#111;font-weight:600}
 .leg{position:absolute;left:12px;bottom:12px;z-index:3;max-width:330px;background:rgba(17,17,17,.9);border:1px solid var(--line);padding:9px 12px;font-size:11.5px;color:#c9c6bd;pointer-events:none}
 .ramp{height:8px;width:120px;background:linear-gradient(to right,rgb(70,18,72),rgb(138,20,84),rgb(205,34,62),rgb(238,104,28),rgb(250,160,24),rgb(255,214,64))}
+.leg i{display:inline-block;width:9px;height:9px;background:#4a4a4a;margin-right:6px}
 .zones{overflow:auto;border-top:1px solid var(--rule)}
 .zones p{color:var(--mid);font-size:13.5px;margin:12px 0}
 .zone{border-bottom:1px solid var(--rule);padding:12px 0}
@@ -209,7 +227,7 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 @media (max-width:900px){
   .hero-copy,.head,.one,.undated,.topcopy,.two{grid-template-columns:1fr}
   .four{grid-template-columns:1fr 1fr}.four div{border-right:0;margin-right:0}
-  .limits{grid-template-columns:1fr}
+  .fine{grid-template-columns:1fr;gap:6px}
   .bar nav a:not(.keep){display:none}.scrollhint{display:none}
   #what{min-height:0}
   .what{--c:min(92vw,560px);grid-template-columns:1fr}
@@ -244,6 +262,7 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
     <a class="ghost" href="#/">&larr; Overview</a>
     <div class="search"><input id="q" type="search" autocomplete="off" aria-label="Search venues"><div id="qres" hidden></div></div>
   </div>
+  <div class="clist" id="clist" hidden></div>
   <div class="card" id="card" hidden></div>
   <div class="hero-copy">
     <h1>What surrounds a stadium?</h1>
@@ -308,22 +327,13 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
   </div>
 </section>
 
-<section class="blk" id="limits">
-  <div class="head reveal">
-    <div><div class="mono">05 / Limits</div><h2>Read this before comparing two venues</h2></div>
-    <p class="note">The observatory shows what is mapped, which is not always what exists.</p>
-  </div>
-  <div class="limits reveal">
-    <p>A circle with few dots can mean a quiet area or thin platform coverage. How completely a platform maps a city varies from place to place, so a low count is not evidence of an empty city.</p>
-    <p>The readings describe what stands near a stadium. They do not show that the stadium produced it.</p>
-    <p>Each venue page states when its places were collected, where that date is on record. Venues were not all collected in the same year.</p>
-    <p>The site publishes counts per cell, per kind and per distance ring. It does not publish the individual place records.</p>
-  </div>
-</section>
-
 <div class="end">
   <h2>Now open the map.</h2>
   <a class="cta" href="#/map">Enter the map <span aria-hidden="true">&rarr;</span></a>
+</div>
+<div class="fine">
+  <div class="mono">Limits</div>
+  <p>The observatory shows what is mapped, which is not always what exists. A circle with few dots can mean a quiet area or thin platform coverage, so a low count is not evidence of an empty city. The readings describe what stands near a stadium; they do not show that the stadium produced it. Venues were not all collected in the same year, and each venue page states its date where one is on record. The site publishes counts per cell, per kind and per distance ring, not individual place records.</p>
 </div>
 <footer>
   <div>Stadia Urban Observatory</div>
@@ -362,8 +372,8 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 
 <section class="vblk" id="what">
   <div class="h">
-    <div><div class="mono">01 / What is there</div><h2>Places by kind</h2></div>
-    <p class="sub">The 1.5 km around the stadium, in <span data-n="cell"></span> m cells. A larger dot means more places in that cell. Select a kind or a type to light it up.</p>
+    <div><div class="mono">01 / What is there</div><h2>Places by kind<span class="info" tabindex="0" data-info="Every mapped place around the stadium belongs to one kind (food, retail, health and so on) and one more specific type. The circle shows where they are, counted in small square cells. Select a kind to see only that kind and its most common types.">i</span></h2></div>
+    <p class="sub">The 1.5 km around the stadium, in <span data-n="cell"></span> m cells. A larger dot means more places in that cell.</p>
   </div>
   <div class="what">
     <div>
@@ -372,7 +382,7 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
     </div>
     <div>
       <ul class="cats" id="cats"></ul>
-      <div class="typeshead mono">Most common types</div>
+      <div class="typeshead mono"><span id="typeshead"></span><span id="typescount"></span></div>
       <div class="types" id="types"></div>
       <div class="hint">Select again to clear.</div>
     </div>
@@ -381,8 +391,8 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 
 <section class="vblk">
   <div class="h">
-    <div><div class="mono">02 / How far</div><h2>Places by distance from the stadium</h2></div>
-    <p class="sub">Places per km² in each <span data-n="ring"></span> m ring, measured in a straight line. Counting per area removes the effect of outer rings simply being larger.</p>
+    <div><div class="mono">02 / How far</div><h2>Places by distance from the stadium<span class="info" tabindex="0" data-info="The circle is cut into rings, like a target. For each ring we count the places inside it and divide by the ring's area, because outer rings are larger and would always hold more. A tall bar close to zero means the stadium has activity at its doorstep. Hover a bar to see how this venue ranks against the others in that ring.">i</span></h2></div>
+    <p class="sub">Places per km² in each <span data-n="ring"></span> m ring, in a straight line from the stadium. Hover a bar for its rank among all venues.</p>
   </div>
   <div class="two">
     <svg id="rings" role="img" aria-label="Places per square kilometre by distance ring"></svg>
@@ -395,8 +405,8 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 
 <section class="vblk">
   <div class="h">
-    <div><div class="mono">03 / Where it concentrates</div><h2>The grid in three dimensions</h2></div>
-    <p class="sub">The same cells, raised. Click the map to drop a zone on a cluster and read what is inside it. Right-drag to rotate.</p>
+    <div><div class="mono">03 / Quantity and mix</div><h2>How much, and how mixed<span class="info" tabindex="0" data-info="Two different questions on one map. Height answers how much: the number of places in the cell. Colour answers how mixed: whether those places are of one kind or of many. A tall dark cell is a lot of the same thing. A bright cell is a real mix, even when it is low. The mix is a Simpson index: the chance that two places picked at random in the cell are of different kinds.">i</span></h2></div>
+    <p class="sub">Height is the number of places. Colour is the mix of kinds. Click the map to drop a zone on a cluster. Right-drag to rotate.</p>
   </div>
   <div class="iso">
     <div class="isomap">
@@ -410,8 +420,8 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 
 <section class="vblk">
   <div class="h">
-    <div><div class="mono">04 / In the study</div><h2>This venue among the <span data-n="venues"></span></h2></div>
-    <p class="sub">Each line is one venue. This one is marked. Position only: no venue is "better" for being further right.</p>
+    <div><div class="mono">04 / In the study</div><h2>This venue among the <span data-n="venues"></span><span class="info" tabindex="0" data-info="Each thin line is one of the venues in the study, placed by its value. The yellow line is this venue. It shows at a glance whether this stadium sits among the many or stands apart.">i</span></h2></div>
+    <p class="sub">Each line is one venue. This one is marked in yellow.</p>
   </div>
   <div class="strips" id="strips"></div>
   <div class="nums" id="nums"></div>
@@ -443,6 +453,7 @@ const NS="http://www.w3.org/2000/svg";
 const el=(n,a,t)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(t!==undefined)e.textContent=t;return e;};
 const h=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;};
 const fmt=n=>n==null?"not on record":n.toLocaleString("en-US");
+const ordinal=n=>n+(n%100>=11&&n%100<=13?"th":({1:"st",2:"nd",3:"rd"}[n%10]||"th"));
 const order=Object.fromEntries(PROG.map(([k],i)=>[k,i]));
 let V=[],CFG=null,STUDY=null,slugIndex={};      // V: [slug,name,country,lat,lng,year,programme,places,rank]
 const cache={};
@@ -452,7 +463,7 @@ function loadVenue(slug){
 }
 function basemapStyle(){
   return fetch(BASEMAP_STYLE_URL).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
-    .catch(()=>({version:8,sources:{},layers:[{id:"bg",type:"background",paint:{"background-color":"#0b0b0b"}}]}));
+    .catch(()=>({version:8,glyphs:GLYPHS,sources:{},layers:[{id:"bg",type:"background",paint:{"background-color":"#0b0b0b"}}]}));
 }
 
 // One figure for the whole site: occupied cells as dots sized by count.
@@ -470,47 +481,112 @@ const toMap=flat=>{const m=new Map();for(let i=0;i<flat.length;i+=2)m.set(flat[i
 function totalCells(v){const m=new Map();v.grid.forEach(a=>{for(let i=0;i<a.length;i+=2)m.set(a[i],(m.get(a[i])||0)+a[i+1]);});return m;}
 
 // ================= HOME =================
-let map=null,mapReady=false,pendingVenue=null;
+let map=null,mapReady=false,pendingVenue=null,pendingCountry=null;
+const MAP_FONT=["Noto Sans Regular"],GLYPHS="https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
+const DOTS_MAX_ZOOM=4.2;      // below this every venue is its own point; above it nearby venues gather by city
+// Natural Earth names -> the names used in the data (same table as scripts/audit_data.py)
+const GEO_ALIASES={"United States of America":"United States","Korea":"South Korea","S. Korea":"South Korea","Czech Rep.":"Czech Republic","Bosnia and Herz.":"Bosnia and Herzegovina","Dominican Rep.":"Dominican Republic","Central African Rep.":"Central African Republic","Dem. Rep. Congo":"Democratic Republic of Congo","Congo":"Republic of the Congo","S. Sudan":"South Sudan","Côte d'Ivoire":"Ivory Coast","Eq. Guinea":"Equatorial Guinea","Lao PDR":"Laos","Macedonia":"North Macedonia"};
 const HANDLERS=["scrollZoom","boxZoom","dragRotate","dragPan","keyboard","doubleClickZoom","touchZoomRotate"];
 function setInteractive(on){if(map)HANDLERS.forEach(k=>{on?map[k].enable():map[k].disable();});}
-function showOnMap(i){
+let lastView="home";
+function showOnMap(i,instant){
   const v=V[i],card=$("card");card.hidden=false;card.innerHTML="";
   const k=h("div","mono",v[2]||"Venue");k.style.color="#8a8780";
   const dl=h("dl");[["Mapped places",fmt(v[7])],["Current building",v[5]||"year not on record"]].forEach(([a,b])=>dl.append(h("dt",null,a),h("dd",null,String(b))));
   const a=h("a",null,"Open the venue page →");a.href="#/venue/"+v[0];
   card.append(k,h("h3",null,v[1]),dl,a);
-  if(mapReady)map.flyTo({center:[v[4],v[3]],zoom:14.6,duration:2400,essential:true});else pendingVenue=i;
+  $("clist").hidden=true;
+  if(!mapReady){pendingVenue=i;return;}
+  // Stop on the framing the venue page opens with, so the picture does not jump on the page change.
+  const cam={center:[v[4],v[3]],zoom:venueZoom(),bearing:0,pitch:0};
+  if(instant)map.jumpTo(cam);else map.flyTo({...cam,duration:3200,curve:1.5,essential:true});
+}
+function showCountry(name){
+  const list=V.map((v,i)=>[v,i]).filter(([v])=>v[2]===name).sort((a,b)=>b[0][7]-a[0][7]);
+  const box=$("clist");box.innerHTML="";$("card").hidden=true;
+  if(!list.length){box.hidden=true;return;}
+  const hd=h("header");hd.append(h("b",null,name),h("span","mono",list.length+(list.length===1?" venue":" venues")));
+  const body=h("div");
+  list.forEach(([v])=>{const a=h("a");a.href="#/map/"+v[0];a.append(v[1],h("span",null,fmt(v[7])+" places"));body.append(a);});
+  box.append(hd,body);box.hidden=false;
+  const go=()=>{
+    if(list.length===1){map.flyTo({center:[list[0][0][4],list[0][0][3]],zoom:8,duration:1800});return;}
+    const xs=list.map(([v])=>v[4]),ys=list.map(([v])=>v[3]);
+    map.fitBounds([[Math.min(...xs),Math.min(...ys)],[Math.max(...xs),Math.max(...ys)]],{padding:{top:140,bottom:90,left:90,right:Math.min(420,innerWidth*0.35)},maxZoom:9,duration:1800});
+  };
+  if(mapReady)go();else pendingCountry=go;
 }
 function enterMap(i){
   const was=document.body.classList.contains("in-map");
   document.body.classList.add("in-map");window.scrollTo(0,0);setInteractive(true);
   setTimeout(()=>{if(map)map.resize();},60);
-  if(typeof i==="number")showOnMap(i);
-  else{$("card").hidden=true;if(was&&mapReady)map.flyTo({...WORLD,duration:1200});}
+  if(typeof i==="number")showOnMap(i,lastView==="venue");
+  else if(typeof i==="string")showCountry(i);
+  else{$("card").hidden=true;$("clist").hidden=true;if(was&&mapReady)map.flyTo({...WORLD,duration:1200});}
 }
 function exitMap(){
   if(!document.body.classList.contains("in-map"))return;
-  document.body.classList.remove("in-map");$("card").hidden=true;setInteractive(false);
+  document.body.classList.remove("in-map");$("card").hidden=true;$("clist").hidden=true;setInteractive(false);
   if(map){map.resize();map.flyTo({...WORLD,duration:1200});}
 }
 function initMap(){
   basemapStyle().then(style=>{
     map=new maplibregl.Map({container:"map",style,...WORLD,minZoom:1,maxZoom:18,attributionControl:false});
-    map.addControl(new maplibregl.AttributionControl({compact:true}),"top-right");
-    requestAnimationFrame(()=>{const a=document.querySelector("#map .maplibregl-ctrl-attrib");if(a){a.classList.remove("maplibregl-compact-show");a.removeAttribute("open");}});
+    map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-left");
+    // keep the credit folded to its "i" button; it opens on click
+    const foldCredit=()=>{const a=document.querySelector("#map .maplibregl-ctrl-attrib");if(a){a.classList.remove("maplibregl-compact-show");a.removeAttribute("open");}};
+    map.once("load",foldCredit);map.once("idle",foldCredit);
     setInteractive(document.body.classList.contains("in-map"));
+    map.on("error",e=>console.error("map:",e.error&&e.error.message||e));
     map.on("load",()=>{
       map.getStyle().layers.forEach(l=>{if(l.type==="symbol")map.setLayoutProperty(l.id,"visibility","none");});
       map.addSource("sat",{type:"raster",tiles:[SAT_TILES],tileSize:256,attribution:SAT_CREDIT});
       map.addLayer({id:"sat",type:"raster",source:"sat",paint:{"raster-opacity":["interpolate",["linear"],["zoom"],12,0,14.5,1]}});
-      map.addSource("venues",{type:"geojson",data:{type:"FeatureCollection",features:V.map((v,i)=>({type:"Feature",geometry:{type:"Point",coordinates:[v[4],v[3]]},properties:{i,name:v[1]}}))}});
-      map.addLayer({id:"venues-halo",type:"circle",source:"venues",paint:{"circle-radius":["interpolate",["linear"],["zoom"],1,5,6,12,12,22],"circle-color":"#ffffff","circle-opacity":0.08}});
-      map.addLayer({id:"venues",type:"circle",source:"venues",paint:{"circle-radius":["interpolate",["linear"],["zoom"],1,1.8,6,4,12,7],"circle-color":"#ffffff","circle-stroke-width":["interpolate",["linear"],["zoom"],10,0,13,2],"circle-stroke-color":ACCENT}});
+      const feats=V.map((v,i)=>({type:"Feature",geometry:{type:"Point",coordinates:[v[4],v[3]]},properties:{i,name:v[1]}}));
+      const inMap=()=>document.body.classList.contains("in-map");
+      // World level: every venue is a small light, as on a night image. Overlapping lights add up.
+      map.addSource("venues",{type:"geojson",data:{type:"FeatureCollection",features:feats}});
+      map.addLayer({id:"venues-glow",type:"circle",source:"venues",maxzoom:DOTS_MAX_ZOOM,paint:{"circle-radius":["interpolate",["linear"],["zoom"],1,9,4,16],"circle-color":"#ffe9b8","circle-blur":1,"circle-opacity":0.2}});
+      map.addLayer({id:"venues-halo",type:"circle",source:"venues",maxzoom:DOTS_MAX_ZOOM,paint:{"circle-radius":["interpolate",["linear"],["zoom"],1,3.6,4,6],"circle-color":"#fff6e0","circle-blur":0.8,"circle-opacity":0.5}});
+      map.addLayer({id:"venues",type:"circle",source:"venues",maxzoom:DOTS_MAX_ZOOM,paint:{"circle-radius":["interpolate",["linear"],["zoom"],1,1.5,4,2.6],"circle-color":"#ffffff"}});
+      // Country and city level: venues that sit close together gather into one larger light with a count.
+      map.addSource("vc",{type:"geojson",data:{type:"FeatureCollection",features:feats},cluster:true,clusterRadius:42,clusterMaxZoom:9});
+      const isC=["has","point_count"],notC=["!",["has","point_count"]];
+      map.addLayer({id:"vc-glow-city",type:"circle",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:isC,paint:{"circle-radius":["interpolate",["linear"],["get","point_count"],2,26,20,46],"circle-color":"#ffe9b8","circle-blur":1,"circle-opacity":0.22}});
+      map.addLayer({id:"vc-glow",type:"circle",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:notC,paint:{"circle-radius":["interpolate",["linear"],["zoom"],4,14,12,26],"circle-color":"#ffe9b8","circle-blur":1,"circle-opacity":0.22}});
+      map.addLayer({id:"vc-cluster",type:"circle",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:isC,paint:{"circle-radius":["interpolate",["linear"],["get","point_count"],2,11,20,20],"circle-color":"rgba(255,246,224,0.16)","circle-stroke-width":1,"circle-stroke-color":"rgba(255,246,224,0.75)"}});
+      map.addLayer({id:"vc-count",type:"symbol",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:isC,layout:{"text-field":["get","point_count_abbreviated"],"text-font":MAP_FONT,"text-size":11,"text-allow-overlap":true},paint:{"text-color":"#ffffff"}});
+      map.addLayer({id:"vc-point",type:"circle",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:notC,paint:{"circle-radius":["interpolate",["linear"],["zoom"],4,3.4,12,7],"circle-color":"#ffffff","circle-stroke-width":["interpolate",["linear"],["zoom"],10,0,13,2],"circle-stroke-color":ACCENT}});
       const pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:10});
-      map.on("mousemove","venues",e=>{if(!document.body.classList.contains("in-map"))return;map.getCanvas().style.cursor="pointer";pop.setLngLat(e.features[0].geometry.coordinates).setText(e.features[0].properties.name).addTo(map);});
-      map.on("mouseleave","venues",()=>{map.getCanvas().style.cursor="";pop.remove();});
-      map.on("click","venues",e=>{if(document.body.classList.contains("in-map"))location.hash="#/map/"+V[e.features[0].properties.i][0];});
+      ["venues","vc-point"].forEach(id=>{
+        map.on("mousemove",id,e=>{if(!inMap())return;map.getCanvas().style.cursor="pointer";pop.setLngLat(e.features[0].geometry.coordinates).setText(e.features[0].properties.name).addTo(map);});
+        map.on("mouseleave",id,()=>{map.getCanvas().style.cursor="";pop.remove();});
+        map.on("click",id,e=>{if(inMap())location.hash="#/map/"+V[e.features[0].properties.i][0];});
+      });
+      map.on("mouseenter","vc-cluster",()=>{if(inMap())map.getCanvas().style.cursor="pointer";});
+      map.on("mouseleave","vc-cluster",()=>{map.getCanvas().style.cursor="";});
+      map.on("click","vc-cluster",e=>{if(!inMap())return;const f=e.features[0];
+        map.getSource("vc").getClusterExpansionZoom(f.properties.cluster_id).then(z=>map.easeTo({center:f.geometry.coordinates,zoom:z+0.6,duration:900}));});
+      // Countries that hold venues light up softly under the cursor; a click opens the country.
+      fetch("data/geo/ne_110m_countries.geojson").then(r=>r.json()).then(geo=>{
+        const has=new Set(V.map(v=>v[2]));
+        geo.features.forEach((f,i)=>{f.id=i;const n=GEO_ALIASES[f.properties.NAME]||f.properties.NAME;f.properties.name=n;f.properties.has=has.has(n)?1:0;});
+        map.addSource("countries",{type:"geojson",data:geo});
+        // a zoom ramp must be the outer expression, so the hover test sits inside its stops
+        const hov=["boolean",["feature-state","hover"],false],fade=v=>["interpolate",["linear"],["zoom"],5,["case",hov,v,0],7.5,0];
+        map.addLayer({id:"country-fill",type:"fill",source:"countries",filter:["==",["get","has"],1],paint:{"fill-color":"#ffffff","fill-opacity":fade(0.07)}},"venues-glow");
+        map.addLayer({id:"country-line",type:"line",source:"countries",filter:["==",["get","has"],1],paint:{"line-color":"#ffffff","line-width":1,"line-opacity":fade(0.45)}},"venues-glow");
+        let hid=null;const clear=()=>{if(hid!==null){map.setFeatureState({source:"countries",id:hid},{hover:false});hid=null;}};
+        map.on("mousemove","country-fill",e=>{if(!inMap()||map.getZoom()>7.5){clear();return;}
+          const id=e.features[0].id;if(id!==hid){clear();hid=id;map.setFeatureState({source:"countries",id},{hover:true});}});
+        map.on("mouseleave","country-fill",clear);
+        map.on("click","country-fill",e=>{if(!inMap()||map.getZoom()>7.5)return;
+          if(map.queryRenderedFeatures(e.point,{layers:["venues","vc-point","vc-cluster"]}).length)return;   // a venue or a city was clicked
+          location.hash="#/map/country/"+encodeURIComponent(e.features[0].properties.name);});
+      }).catch(e=>console.warn("country outlines unavailable:",e));
       mapReady=true;
+      if(pendingCountry){const g=pendingCountry;pendingCountry=null;g();}
+      if(pendingVenue!==null)      mapReady=true;
       if(pendingVenue!==null){const i=pendingVenue;pendingVenue=null;showOnMap(i);}
     });
   });
@@ -581,12 +657,16 @@ function initHome(atlas){
 }
 
 // ================= VENUE =================
-let cur=null,sel=null;        // sel: {kind:"cat"|"type", i}
+let cur=null,selCat=null,selType=null;   // selected kind (index into cats) and type (index into types)
 const SAT={z:16,cols:11,rows:7,tile:256};
+// Scale of the satellite mosaic behind the venue title. p = how far the card has scrolled away (0..1).
+// The card fills the window, so the window size is used: the map can then stop on the same framing.
 function satScale(p){
-  const top=$("top");
-  return Math.max(top.clientWidth/((SAT.cols-1)*SAT.tile),top.clientHeight/((SAT.rows-1)*SAT.tile))*(1.04+0.5*(1-p));
+  const w=innerWidth,hh=Math.max(innerHeight,600);
+  return Math.max(w/((SAT.cols-1)*SAT.tile),hh/((SAT.rows-1)*SAT.tile))*(1.04+0.5*(1-p));
 }
+// Map zoom that shows the same picture as the mosaic at rest (256 px tiles of level z fill the screen at map zoom z-1).
+const venueZoom=()=>SAT.z-1+Math.log2(satScale(0));
 function buildSat(v){
   const box=$("sat");box.innerHTML="";box.classList.remove("live");
   const n=2**SAT.z,xf=(v.lng+180)/360*n,la=v.lat*Math.PI/180,yf=(1-Math.log(Math.tan(la)+1/Math.cos(la))/Math.PI)/2*n;
@@ -596,33 +676,42 @@ function buildSat(v){
     im.style.left=((x0+c-xf)*SAT.tile)+"px";im.style.top=((y0+r-yf)*SAT.tile)+"px";
     im.src=SAT_TILES.replace("{z}",SAT.z).replace("{y}",y0+r).replace("{x}",((x0+c)%n+n)%n);
     box.append(im);}
-  box.style.transform=`scale(${satScale(0)*1.5})`;
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{box.style.transform=`scale(${satScale(0)})`;}));
-  const slug=v.slug;setTimeout(()=>{if(cur&&cur.slug===slug)box.classList.add("live");},2500);
+  // No movement on arrival: the picture is the one the map stopped on. It pulls back only on scroll.
+  box.style.transform=`scale(${satScale(0)})`;
+  const top=$("top");top.classList.remove("arrive");void top.offsetWidth;top.classList.add("arrive");
 }
 function satOnScroll(){
   if(document.body.dataset.view!=="venue")return;
   const p=Math.min(1,scrollY/$("top").clientHeight);
   document.body.classList.toggle("scrolled",p>0.85);
-  const box=$("sat");if(box.classList.contains("live"))box.style.transform=`scale(${satScale(p)})`;
+  $("sat").style.transform=`scale(${satScale(p)})`;
 }
 addEventListener("scroll",satOnScroll,{passive:true});
-addEventListener("resize",()=>{satOnScroll();if(cur)paintCircle();});
+addEventListener("resize",satOnScroll);
 
 function paintCircle(){
   const v=cur;let lit=null,label=`All ${fmt(v.n)} places`;
-  if(sel&&sel.kind==="cat"){lit=toMap(v.grid[sel.i]);label=`${v.cats[sel.i][0]} · ${fmt(v.cats[sel.i][1])} places`;}
-  if(sel&&sel.kind==="type"){lit=toMap(v.typeGrid[sel.i]);label=`${v.types[sel.i][0]} · ${fmt(v.types[sel.i][2])} places`;}
-  drawCells($("circleCanvas"),1400,cur._cells,lit,15);
+  if(selType!==null){lit=toMap(v.typeGrid[selType]);label=`${v.types[selType][0]} · ${fmt(v.types[selType][2])} places`;}
+  else if(selCat!==null){lit=toMap(v.grid[selCat]);label=`${v.cats[selCat][0]} · ${fmt(v.cats[selCat][1])} places`;}
+  drawCells($("circleCanvas"),1400,v._cells,lit,15);
   $("showing").textContent=label;
-  document.querySelectorAll("#cats button").forEach((b,j)=>{const on=sel&&sel.kind==="cat"&&sel.i===j;b.setAttribute("aria-pressed",String(!!on));b.classList.toggle("off",!!sel&&!on);});
-  document.querySelectorAll("#types button").forEach((b,j)=>{const on=sel&&sel.kind==="type"&&sel.i===j;b.setAttribute("aria-pressed",String(!!on));
-    b.classList.toggle("off",!!sel&&!on&&!(sel.kind==="cat"&&v.types[j][1]===v.cats[sel.i][0]));});
+  document.querySelectorAll("#cats button").forEach((b,j)=>{b.setAttribute("aria-pressed",String(selCat===j));b.classList.toggle("off",selCat!==null&&selCat!==j);});
+  document.querySelectorAll("#types button").forEach(b=>{const on=selType===+b.dataset.t;b.setAttribute("aria-pressed",String(on));b.classList.toggle("off",selType!==null&&!on);});
 }
-function pick(kind,i){sel=sel&&sel.kind===kind&&sel.i===i?null:{kind,i};paintCircle();}
+// The type list answers the question the reader has just asked: all places, or one kind.
+function paintTypes(){
+  const v=cur,box=$("types");box.innerHTML="";
+  const list=selCat===null?v.topTypes:v.kindTypes[selCat];
+  $("typeshead").innerHTML="";
+  if(selCat===null){$("typeshead").textContent="Most common types";$("typescount").textContent="";}
+  else{$("typeshead").append("Most common ",h("b",null,v.cats[selCat][0])," types");$("typescount").textContent=v.kindNTypes[selCat]+(v.kindNTypes[selCat]===1?" type":" types")+" in this kind";}
+  list.forEach(ti=>{const[t,c,n]=v.types[ti],b=h("button");b.type="button";b.dataset.t=ti;b.title=c;b.append(h("span","tn",t),h("span",null,fmt(n)));
+    b.addEventListener("click",()=>{selType=selType===ti?null:ti;paintCircle();});box.append(b);});
+}
+function pickCat(j){selCat=selCat===j?null:j;selType=null;paintTypes();paintCircle();}
 
 function renderVenue(v){
-  cur=v;sel=null;v._cells=v._cells||totalCells(v);
+  cur=v;selCat=null;selType=null;v._cells=v._cells||totalCells(v);
   const i=slugIndex[v.slug];
   document.title=v.name+" · Stadia Urban Observatory";
   ["tomap1","tomap2","tomap3"].forEach(id=>{$(id).href="#/map/"+v.slug;});
@@ -639,10 +728,8 @@ function renderVenue(v){
   const cats=$("cats");cats.innerHTML="";const maxCat=v.cats.length?v.cats[0][1]:1;
   v.cats.forEach(([name,c],j)=>{const li=h("li"),b=h("button");b.type="button";
     const tr=h("span","track"),fl=h("span","fill");fl.style.width=(100*c/maxCat)+"%";tr.append(fl);
-    b.append(h("span","nm",name),tr,h("span","val",fmt(c)+" · "+Math.round(100*c/v.n)+"%"));b.addEventListener("click",()=>pick("cat",j));li.append(b);cats.append(li);});
-  const types=$("types");types.innerHTML="";
-  v.types.forEach(([t,c,n],j)=>{const b=h("button");b.type="button";b.title=c;b.append(h("span","tn",t),h("span",null,fmt(n)));b.addEventListener("click",()=>pick("type",j));types.append(b);});
-  paintCircle();
+    b.append(h("span","nm",name),tr,h("span","val",fmt(c)+" · "+Math.round(100*c/v.n)+"%"));b.addEventListener("click",()=>pickCat(j));li.append(b);cats.append(li);});
+  paintTypes();paintCircle();
 
   const svg=$("rings");svg.innerHTML="";
   const W=760,H=300,L=44,B=34,T=14,nR=v.ringDensity.length,bw=(W-L)/nR,maxD=Math.max(1,...v.ringDensity),best=v.ringDensity.indexOf(Math.max(...v.ringDensity));
@@ -650,28 +737,35 @@ function renderVenue(v){
   [0,0.5,1].forEach(f=>{const y=T+(H-T-B)*(1-f);svg.append(el("line",{x1:L,x2:W,y1:y,y2:y,stroke:"#2a2a2a"}),el("text",{x:L-8,y:y+3,"text-anchor":"end"},fmt(Math.round(maxD*f))));});
   v.ringDensity.forEach((d,j)=>{const bh=(H-T-B)*d/maxD;
     const rect=el("rect",{x:L+j*bw+2,y:H-B-bh,width:bw-4,height:Math.max(bh,d>0?1:0),fill:j===best&&v.n>=20?ACCENT:"#fff"});
-    rect.append(el("title",{},`${j*CFG.ring} to ${(j+1)*CFG.ring} m: ${fmt(d)} places per km² (${fmt(v.rings[j])} places)`));svg.append(rect);
+    rect.style.cursor="help";
+    rect.addEventListener("mousemove",e=>{tip.hidden=false;tip.innerHTML="";tip.append(`${j*CFG.ring} to ${(j+1)*CFG.ring} m · ${fmt(Math.round(d))} per km²`);
+      tip.append(h("span",null,`${ordinal(v.ringRank[j])} of ${V.length} venues in this ring · ${fmt(v.rings[j])} places`));
+      tip.style.left=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8)+"px";tip.style.top=(e.clientY-34)+"px";});
+    rect.addEventListener("mouseleave",()=>{tip.hidden=true;});svg.append(rect);
     if(j%2===0)svg.append(el("text",{x:L+j*bw,y:H-B+16,"text-anchor":"middle"},j*CFG.ring+(j===0?" m":"")));});
   svg.append(el("text",{x:W,y:H-B+16,"text-anchor":"end"},CFG.radius+" m"),el("text",{x:L,y:H-4},"distance from the stadium, straight line"),el("text",{x:L,y:9},"places per km²"));
   const big=(id,val)=>{const n=$(id);n.innerHTML="";if(val==null){n.textContent="n/a";return;}n.append(fmt(val),h("small",null,"m"));};
   big("medLin",v.medLin);big("medNet",v.medNet);
 
   const strips=$("strips");strips.innerHTML="";
-  [["places","Mapped places","within 1.5 km",x=>fmt(x),true],
-   ["medianDist","Median distance by street","stadium to places",x=>fmt(x)+" m",false],
-   ["intersections","Street intersections","within 1.5 km",x=>fmt(x),false],
-   ["blockLength","Average block length","street segment",x=>x+" m",false]].forEach(([key,lab,sub,f,log])=>{
-    const all=STUDY[key],mine=v.study[key];
-    const row=h("div","strip"),l=h("div","lab",lab);l.append(h("small",null,sub+(log?" · log scale":"")));
+  // ends: words for the two ends of the scale. top: true where the reader expects "1st" to mean the most.
+  [{key:"places",lab:"Mapped places",sub:"within 1.5 km",f:x=>fmt(x),log:true,ends:["fewest","most"],top:true},
+   {key:"cellMix",lab:"Mix of kinds",sub:"average over cells, 0 to 1",f:x=>x.toFixed(2),ends:["one kind","evenly mixed"],top:true,none:"too few places to compute"},
+   {key:"medianDist",lab:"Median distance by street",sub:"stadium to places",f:x=>fmt(x)+" m",ends:["nearest","farthest"]},
+   {key:"intersections",lab:"Street intersections",sub:"within 1.5 km",f:x=>fmt(x),ends:["fewest","most"],top:true},
+   {key:"blockLength",lab:"Average block length",sub:"street segment",f:x=>x+" m",ends:["shortest","longest"]}].forEach(o=>{
+    const all=STUDY[o.key],mine=v.study[o.key],f=o.f,log=o.log;
+    const row=h("div","strip"),l=h("div","lab",o.lab);l.append(h("small",null,o.sub+(log?" · log scale":"")));
     const s=document.createElementNS(NS,"svg"),W2=900,H2=46;s.setAttribute("viewBox",`0 0 ${W2} ${H2}`);
     const tf=x=>log?Math.log10(Math.max(1,x)):x,lo=tf(all[0]),hi=tf(all[all.length-1]),X=x=>6+(W2-12)*(hi>lo?(tf(x)-lo)/(hi-lo):0.5);
     s.append(el("line",{x1:0,x2:W2,y1:H2-10,y2:H2-10,stroke:"#2a2a2a"}));
     all.forEach(x=>s.append(el("line",{x1:X(x),x2:X(x),y1:14,y2:H2-10,stroke:"#fff","stroke-opacity":0.22,"stroke-width":1})));
-    s.append(el("text",{x:0,y:H2,"text-anchor":"start"},f(all[0])),el("text",{x:W2,y:H2,"text-anchor":"end"},f(all[all.length-1])));
+    s.append(el("text",{x:0,y:H2,"text-anchor":"start"},o.ends[0]+" · "+f(all[0])),el("text",{x:W2,y:H2,"text-anchor":"end"},f(all[all.length-1])+" · "+o.ends[1]));
     const val=h("div","val");
     if(mine!=null){s.append(el("line",{x1:X(mine),x2:X(mine),y1:2,y2:H2-10,stroke:ACCENT,"stroke-width":3}));
-      val.append(f(mine),h("small",null,`${all.filter(x=>x<mine).length+1} of ${all.length}, low to high`));}
-    else val.textContent="not on record";
+      const above=all.filter(x=>x>mine).length,below=all.filter(x=>x<mine).length;
+      val.append(f(mine),h("small",null,o.top?`${ordinal(above+1)} of ${all.length} · 1st = ${o.ends[1]}`:`${ordinal(below+1)} of ${all.length} · 1st = ${o.ends[0]}`));}
+    else val.textContent=o.none||"not on record";
     row.append(l,s,val);strips.append(row);});
   const nums=$("nums");nums.innerHTML="";
   [["Intersections",v.net.intersections,""],["Average block",v.net.block,"m"],["Street length",v.net.streetKm,"km"]].forEach(([lab,val,u])=>{
@@ -686,29 +780,28 @@ function posterRamp(t){
   for(let i=0;i<st.length-1;i++)if(t>=st[i][0]&&t<=st[i+1][0]){const f=(t-st[i][0])/(st[i+1][0]-st[i][0]);return[1,2,3].map(k=>Math.round(st[i][k]+(st[i+1][k]-st[i][k])*f));}
   return[255,214,64];
 }
-// category mix of one cell: evenness x sqrt(n/100) x share of categories present (same formula as the printed models)
-function mixScore(counts,total,nCats){
-  const vals=counts.filter(x=>x>0),n=vals.length;if(!n||!total)return 0;
-  let sh=0;vals.forEach(x=>{const p=x/total;sh-=p*Math.log(p);});
-  return (n>1?sh/Math.log(n):0)*Math.sqrt(total/100)*(n/16);
+// Mix of kinds in one cell: Simpson index, the chance that two places picked at random are of different kinds.
+// The number of places is not part of it, so it reads independently of height.
+function simpson(counts){
+  const n=counts.reduce((a,b)=>a+b,0);if(n<2)return 0;
+  return 1-counts.reduce((a,x)=>a+x*(x-1),0)/(n*(n-1));
 }
+const MIX_TOP=0.9;   // mix value drawn at the bright end of the ramp
 function gridFeatures(v){
   const N=CFG.gridN,nC=v.cats.length,cells=new Map();
   v.grid.forEach((a,ci)=>{for(let i=0;i<a.length;i+=2){let c=cells.get(a[i]);if(!c){c={k:a[i],counts:new Array(nC).fill(0),total:0};cells.set(a[i],c);}c.counts[ci]+=a[i+1];c.total+=a[i+1];}});
-  const list=[...cells.values()];let maxMix=0,maxCount=0,maxRaw=0;
-  list.forEach(c=>{c.mix=mixScore(c.counts,c.total,nC);if(c.mix>maxMix)maxMix=c.mix;if(c.total>maxCount)maxCount=c.total;});
-  list.forEach(c=>{c.raw=Math.sqrt(c.total)*(1+9*(maxMix>0?c.mix/maxMix:0));if(c.raw>maxRaw)maxRaw=c.raw;});
-  const sorted=list.map(c=>c.mix).sort((a,b)=>a-b);
-  const rankOf=x=>{let lo=0,hi=sorted.length;while(lo<hi){const m=(lo+hi)>>1;if(sorted[m]<x)lo=m+1;else hi=m;}return sorted.length>1?lo/(sorted.length-1):0;};
+  const list=[...cells.values()];let maxCount=1;
+  list.forEach(c=>{c.mix=c.total>=CFG.mixMinPlaces?simpson(c.counts):null;if(c.total>maxCount)maxCount=c.total;});
   const latH=CFG.radius/M_PER_DEG,lonH=CFG.radius/(M_PER_DEG*Math.cos(v.lat*Math.PI/180)),cLat=2*latH/N,cLon=2*lonH/N;
   v._cellList=list.map(c=>{const row=Math.floor(c.k/N),col=c.k%N;return{...c,lat:v.lat+latH-(row+0.5)*cLat,lng:v.lng-lonH+(col+0.5)*cLon};});
-  return list.map(c=>{const row=Math.floor(c.k/N),col=c.k%N,w=v.lng-lonH+col*cLon,e=w+cLon,n=v.lat+latH-row*cLat,s=n-cLat,[r,g,b]=posterRamp(rankOf(c.mix));
+  return list.map(c=>{const row=Math.floor(c.k/N),col=c.k%N,w=v.lng-lonH+col*cLon,e=w+cLon,n=v.lat+latH-row*cLat,s=n-cLat;
+    const rgb=c.mix===null?[74,74,74]:posterRamp(c.mix/MIX_TOP);
     return{type:"Feature",geometry:{type:"Polygon",coordinates:[[[w,s],[e,s],[e,n],[w,n],[w,s]]]},
-      properties:{col:`rgb(${r},${g},${b})`,total:c.total,cats:c.counts.filter(x=>x>0).length,hComb:maxRaw>0?c.raw/maxRaw:0,hCount:maxCount>0?c.total/maxCount:0}};});
+      properties:{col:`rgb(${rgb})`,total:c.total,cats:c.counts.filter(x=>x>0).length,mix:c.mix===null?-1:+c.mix.toFixed(2),hCount:c.total/maxCount}};});
 }
 function circlePoly(lng,lat,rM){const p=[];for(let i=0;i<=72;i++){const a=i/72*2*Math.PI;p.push([lng+rM*Math.cos(a)/(M_PER_DEG*Math.cos(lat*Math.PI/180)),lat+rM*Math.sin(a)/M_PER_DEG]);}return p;}
 let dmap=null,dReady=false,dQueued=null,zones=[];
-const dState={view3d:true,hKey:"hComb",base:"dark",maxH:700};
+const dState={view3d:true,base:"dark",maxH:700};
 function paintZones(){
   const box=$("zones");box.innerHTML="";
   if(!zones.length)box.append(h("p",null,`Click the map to drop a zone on a cluster. Up to ${MAX_ZONES} zones.`));
@@ -721,7 +814,7 @@ function paintZones(){
     zh.append(sw,h("b",null,"Zone "+(i+1)),h("span","r","r = "+z.r+" m"));
     [["−",-50],["+",50]].forEach(([t,dv])=>{const b=h("button",null,t);b.title="Change radius by 50 m";b.addEventListener("click",()=>{z.r=Math.max(100,Math.min(750,z.r+dv));paintZones();});zh.append(b);});
     const x=h("button",null,"×");x.title="Remove zone";x.addEventListener("click",()=>{zones.splice(i,1);paintZones();});zh.append(x);
-    const dl=h("dl");[["Places",fmt(n)],["Kinds present",present+" of "+cur.cats.length],["Most common",n?cur.cats[topI][0]:"none"]].forEach(([a,b])=>dl.append(h("dt",null,a),h("dd",null,b)));
+    const dl=h("dl");[["Places",fmt(n)],["Kinds present",present+" of "+cur.cats.length],["Mix of kinds",n>=CFG.mixMinPlaces?simpson(counts).toFixed(2):"too few places"],["Most common",n?cur.cats[topI][0]:"none"]].forEach(([a,b])=>dl.append(h("dt",null,a),h("dd",null,b)));
     d.append(zh,dl);box.append(d);
   });
   if(zones.length)box.append(h("p",null,"Zones count whole cells whose centre falls inside the circle."));
@@ -732,18 +825,18 @@ function paintCtl(){
   const seg=(label,key,opts)=>{const row=h("div","seg"),grp=h("div");row.append(h("span","mono",label),grp);
     opts.forEach(([val,t])=>{const b=h("button",null,t);b.setAttribute("aria-pressed",String(dState[key]===val));b.addEventListener("click",()=>{dState[key]=val;paintCtl();applyD(key==="view3d");});grp.append(b);});box.append(row);};
   seg("View","view3d",[[true,"3D"],[false,"2D"]]);
-  seg("Height","hKey",[["hComb","Combined"],["hCount","Places"]]);
   seg("Base","base",[["dark","Dark"],["sat","Satellite"]]);
   const leg=$("leg");leg.innerHTML="";
-  const r=h("div");r.style.cssText="display:flex;align-items:center;gap:8px;margin-bottom:5px";r.append("fewer kinds",h("div","ramp"),"more kinds, by rank");leg.append(r);
-  if(dState.view3d)leg.append(h("div",null,dState.hKey==="hComb"?"Height: √places × category mix, as in the printed models. Relative, not physical.":"Height: number of places in the cell. Relative, not physical."));
+  const r=h("div");r.style.cssText="display:flex;align-items:center;gap:8px;margin-bottom:5px";r.append("one kind",h("div","ramp"),"evenly mixed");leg.append(r);
+  const g=h("div");g.append(h("i"),`fewer than ${CFG.mixMinPlaces} places: no mix value`);leg.append(g);
+  if(dState.view3d)leg.append(h("div",null,"Height: number of places in the cell. Relative, not physical."));
 }
 function applyD(cam){
   if(!dReady)return;
   dmap.setLayoutProperty("cells-3d","visibility",dState.view3d?"visible":"none");
   dmap.setLayoutProperty("cells-flat","visibility",dState.view3d?"none":"visible");
   dmap.setLayoutProperty("sat","visibility",dState.base==="sat"?"visible":"none");
-  dmap.setPaintProperty("cells-3d","fill-extrusion-height",["*",["get",dState.hKey],dState.maxH]);
+  dmap.setPaintProperty("cells-3d","fill-extrusion-height",["*",["get","hCount"],dState.maxH]);
   if(cam)dmap.easeTo(dState.view3d?{pitch:55,bearing:-25,duration:700}:{pitch:0,bearing:0,duration:700});
 }
 function updateDmap(v){
@@ -760,7 +853,7 @@ function updateDmap(v){
         dmap.addLayer({id:"sat",type:"raster",source:"sat",layout:{visibility:"none"},paint:{"raster-brightness-max":0.55}});
         dmap.addSource("cells",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
         dmap.addLayer({id:"cells-flat",type:"fill",source:"cells",layout:{visibility:"none"},paint:{"fill-color":["get","col"],"fill-opacity":0.88}});
-        dmap.addLayer({id:"cells-3d",type:"fill-extrusion",source:"cells",paint:{"fill-extrusion-color":["get","col"],"fill-extrusion-height":["*",["get","hComb"],700],"fill-extrusion-opacity":0.94}});
+        dmap.addLayer({id:"cells-3d",type:"fill-extrusion",source:"cells",paint:{"fill-extrusion-color":["get","col"],"fill-extrusion-height":["*",["get","hCount"],700],"fill-extrusion-opacity":0.94}});
         dmap.addSource("zones",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
         dmap.addLayer({id:"zones-fill",type:"fill",source:"zones",paint:{"fill-color":["get","color"],"fill-opacity":0.07}});
         dmap.addLayer({id:"zones-line",type:"line",source:"zones",paint:{"line-color":["get","color"],"line-width":2,"line-dasharray":[2,2]}});
@@ -768,7 +861,7 @@ function updateDmap(v){
         dmap.addLayer({id:"stad",type:"circle",source:"stad",paint:{"circle-radius":7,"circle-color":"#fff","circle-stroke-width":3,"circle-stroke-color":"rgba(255,255,255,0.35)"}});
         const pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:10});
         ["cells-flat","cells-3d"].forEach(id=>{
-          dmap.on("mousemove",id,e=>{const p=e.features[0].properties;pop.setLngLat(e.lngLat).setText(`${p.total} place${p.total!=1?"s":""} · ${p.cats} kind${p.cats!=1?"s":""}`).addTo(dmap);});
+          dmap.on("mousemove",id,e=>{const p=e.features[0].properties;pop.setLngLat(e.lngLat).setText(`${p.total} place${p.total!=1?"s":""} · ${p.cats} kind${p.cats!=1?"s":""}`+(p.mix>=0?` · mix ${(+p.mix).toFixed(2)}`:"")).addTo(dmap);});
           dmap.on("mouseleave",id,()=>pop.remove());});
         dmap.getCanvas().style.cursor="crosshair";
         dmap.on("click",e=>{if(zones.length<MAX_ZONES){zones.push({lng:e.lngLat.lng,lat:e.lngLat.lat,r:ZONE_R});paintZones();}});
@@ -792,17 +885,21 @@ function setD(v,feats){
 // #/            landing            #/map            map
 // #/map/<slug>  map on a venue     #/venue/<slug>   venue page
 function route(){
-  const m=location.hash.match(/^#\/(map|venue)(?:\/(.+))?$/),kind=m?m[1]:null,slug=m&&m[2]?decodeURIComponent(m[2]):null;
+  const m=location.hash.match(/^#\/(map|venue)(?:\/(country)\/(.+)|\/(.+))?$/),kind=m?m[1]:null;
+  const country=m&&m[2]?decodeURIComponent(m[3]):null,slug=m&&m[4]?decodeURIComponent(m[4]):null;
   const i=slug!=null?slugIndex[slug]:undefined;
   tip.hidden=true;
   if(kind==="venue"&&typeof i==="number"){
-    document.body.dataset.view="venue";document.body.classList.remove("in-map","scrolled");window.scrollTo(0,0);
-    loadVenue(slug).then(v=>{if(location.hash==="#/venue/"+slug||decodeURIComponent(location.hash)==="#/venue/"+slug)renderVenue(v);})
+    document.body.dataset.view="venue";document.body.classList.remove("in-map","scrolled");window.scrollTo(0,0);lastView="venue";
+    loadVenue(slug).then(v=>{if(decodeURIComponent(location.hash)==="#/venue/"+slug)renderVenue(v);})
       .catch(e=>{console.warn(e);$("name").textContent=V[i][1];$("lede").innerHTML="";$("lede").append(h("li","caveat","This venue's data could not be loaded. Reload the page to try again."));});
     return;
   }
   document.body.dataset.view="home";document.title="Stadia Urban Observatory";
-  if(kind==="map")enterMap(i);else{exitMap();if(location.hash.length>1&&!location.hash.startsWith("#/")){const t=document.querySelector(location.hash);if(t)t.scrollIntoView();}}
+  if(map)map.resize();
+  if(kind==="map")enterMap(country!==null?country:i);
+  else{exitMap();if(location.hash.length>1&&!location.hash.startsWith("#/")){const t=document.querySelector(location.hash);if(t)t.scrollIntoView();}}
+  lastView="home";
   if(map)setTimeout(()=>map.resize(),60);
 }
 addEventListener("hashchange",route);
