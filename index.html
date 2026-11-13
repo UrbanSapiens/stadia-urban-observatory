@@ -68,6 +68,12 @@ body.in-map .mapbar{display:flex}
 #qres a{display:flex;justify-content:space-between;gap:10px;padding:8px 14px;text-decoration:none;font-size:13px;border-top:1px solid var(--rule)}
 #qres a:hover,#qres a:focus{background:#1c1c1c}
 #qres a span{color:var(--mid);font-size:12px}
+body:not(.in-map) .clist,body:not(.in-map) .card{display:none}
+.mcrumbs{display:flex;gap:6px;align-items:center}
+.mcrumbs .here{background:var(--accent);border-color:var(--accent);color:#111;font-weight:600;cursor:default}
+.clist header a{border:1px solid var(--line);width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:14px;text-decoration:none;margin-left:10px}
+.clist header a:hover{border-color:#fff;background:none;color:#fff}
+.clist header span{flex:1}
 .clist{position:absolute;right:var(--gut);top:64px;z-index:5;width:min(320px,calc(100% - 2*var(--gut)));max-height:calc(100% - 64px - 2*var(--gut));display:flex;flex-direction:column;background:rgba(17,17,17,.92);border:1px solid var(--line)}
 .clist header{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--rule)}
 .clist header b{font-size:20px;font-weight:600;letter-spacing:-.02em}
@@ -234,7 +240,7 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
   .iso{grid-template-columns:1fr;height:auto}.isomap{height:62vh}
   .strip{grid-template-columns:1fr;gap:6px}.strip .val{text-align:left}
   .nums{grid-template-columns:1fr}
-  .crumbs span:not(#crumbName),.crumbs .sep{display:none}
+  .crumbs #crumbCountry,.crumbs .sep{display:none}
 }
 </style>
 </head>
@@ -260,6 +266,7 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
   <div class="hero-shade"></div>
   <div class="mapbar">
     <a class="ghost" href="#/">&larr; Overview</a>
+    <div class="mcrumbs" id="mcrumbs"></div>
     <div class="search"><input id="q" type="search" autocomplete="off" aria-label="Search venues"><div id="qres" hidden></div></div>
   </div>
   <div class="clist" id="clist" hidden></div>
@@ -346,7 +353,7 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 <div class="vbar">
   <div class="crumbs mono">
     <a id="tomap1" href="#/map">Map</a><span class="sep">/</span>
-    <span id="crumbCountry"></span><span class="sep">/</span>
+    <a id="crumbCountry"></a><span class="sep">/</span>
     <span id="crumbName" style="color:#fff"></span>
   </div>
   <div class="navbtns">
@@ -489,13 +496,22 @@ const GEO_ALIASES={"United States of America":"United States","Korea":"South Kor
 const HANDLERS=["scrollZoom","boxZoom","dragRotate","dragPan","keyboard","doubleClickZoom","touchZoomRotate"];
 function setInteractive(on){if(map)HANDLERS.forEach(k=>{on?map[k].enable():map[k].disable();});}
 let lastView="home";
+const mapAt={country:null,venue:null};     // what is open on the map right now
+function paintCrumbs(){
+  const box=$("mcrumbs");box.innerHTML="";
+  const add=(label,href,here)=>{const a=h(here?"span":"a","ghost"+(here?" here":""),label);if(!here)a.href=href;box.append(a);};
+  if(mapAt.country===null&&mapAt.venue===null)return;
+  add("World","#/map",false);
+  if(mapAt.country)add(mapAt.country,"#/map/country/"+encodeURIComponent(mapAt.country),mapAt.venue===null);
+  if(mapAt.venue!==null)add(V[mapAt.venue][1],"",true);
+}
 function showOnMap(i,instant){
   const v=V[i],card=$("card");card.hidden=false;card.innerHTML="";
   const k=h("div","mono",v[2]||"Venue");k.style.color="#8a8780";
   const dl=h("dl");[["Mapped places",fmt(v[7])],["Current building",v[5]||"year not on record"]].forEach(([a,b])=>dl.append(h("dt",null,a),h("dd",null,String(b))));
   const a=h("a",null,"Open the venue page →");a.href="#/venue/"+v[0];
   card.append(k,h("h3",null,v[1]),dl,a);
-  $("clist").hidden=true;
+  $("clist").hidden=true;mapAt.venue=i;mapAt.country=v[2]||null;paintCrumbs();
   if(!mapReady){pendingVenue=i;return;}
   // Stop on the framing the venue page opens with, so the picture does not jump on the page change.
   const cam={center:[v[4],v[3]],zoom:venueZoom(),bearing:0,pitch:0};
@@ -504,8 +520,10 @@ function showOnMap(i,instant){
 function showCountry(name){
   const list=V.map((v,i)=>[v,i]).filter(([v])=>v[2]===name).sort((a,b)=>b[0][7]-a[0][7]);
   const box=$("clist");box.innerHTML="";$("card").hidden=true;
+  mapAt.venue=null;mapAt.country=list.length?name:null;paintCrumbs();
   if(!list.length){box.hidden=true;return;}
-  const hd=h("header");hd.append(h("b",null,name),h("span","mono",list.length+(list.length===1?" venue":" venues")));
+  const x=h("a",null,"×");x.href="#/map";x.title="Close and return to the world map";
+  const hd=h("header");hd.append(h("b",null,name),h("span","mono",list.length+(list.length===1?" venue":" venues")),x);
   const body=h("div");
   list.forEach(([v])=>{const a=h("a");a.href="#/map/"+v[0];a.append(v[1],h("span",null,fmt(v[7])+" places"));body.append(a);});
   box.append(hd,body);box.hidden=false;
@@ -522,12 +540,16 @@ function enterMap(i){
   setTimeout(()=>{if(map)map.resize();},60);
   if(typeof i==="number")showOnMap(i,lastView==="venue");
   else if(typeof i==="string")showCountry(i);
-  else{$("card").hidden=true;$("clist").hidden=true;if(was&&mapReady)map.flyTo({...WORLD,duration:1200});}
+  else{$("card").hidden=true;$("clist").hidden=true;mapAt.country=null;mapAt.venue=null;paintCrumbs();
+    // back at world level from anywhere, including after a venue page
+    if(mapReady&&(was||lastView==="venue"||map.getZoom()>WORLD.zoom+0.3))map.flyTo({...WORLD,duration:1200});}
 }
 function exitMap(){
-  if(!document.body.classList.contains("in-map"))return;
-  document.body.classList.remove("in-map");$("card").hidden=true;$("clist").hidden=true;setInteractive(false);
-  if(map){map.resize();map.flyTo({...WORLD,duration:1200});}
+  // always clear the map panels, even when the map was left through a venue page
+  $("card").hidden=true;$("clist").hidden=true;mapAt.country=null;mapAt.venue=null;paintCrumbs();
+  const was=document.body.classList.contains("in-map");
+  document.body.classList.remove("in-map");setInteractive(false);
+  if(map){map.resize();if(was||map.getZoom()>WORLD.zoom+0.3)map.flyTo({...WORLD,duration:was?1200:0});}
 }
 function initMap(){
   basemapStyle().then(style=>{
@@ -716,7 +738,8 @@ function renderVenue(v){
   document.title=v.name+" · Stadia Urban Observatory";
   ["tomap1","tomap2","tomap3"].forEach(id=>{$(id).href="#/map/"+v.slug;});
   $("prev").href="#/venue/"+V[(i-1+V.length)%V.length][0];$("next").href="#/venue/"+V[(i+1)%V.length][0];
-  $("crumbCountry").textContent=v.country||"Country not on record";$("crumbName").textContent=v.name;$("name").textContent=v.name;
+  $("crumbCountry").textContent=v.country||"Country not on record";
+  if(v.country)$("crumbCountry").href="#/map/country/"+encodeURIComponent(v.country);else $("crumbCountry").removeAttribute("href");$("crumbName").textContent=v.name;$("name").textContent=v.name;
   const meta=$("meta");meta.innerHTML="";
   [["",v.country],["",v.tags.join(" · ")],[v.openedKind==="rebuilt"?"Rebuilt ":"Opened ",v.opened],["Capacity ",v.capacity?fmt(v.capacity):null],["Data collected ",v.collected]].forEach(([k,val])=>{
     if(!val)return;const s=h("span");s.append(k,h("b",null,String(val)));meta.append(s);});
@@ -906,7 +929,11 @@ addEventListener("hashchange",route);
 addEventListener("keydown",e=>{
   if(e.key!=="Escape")return;
   if(document.body.dataset.view==="venue"&&cur)location.hash="#/map/"+cur.slug;
-  else if(document.body.classList.contains("in-map"))location.hash="#/";
+  else if(document.body.classList.contains("in-map")){
+    if(mapAt.venue!==null&&mapAt.country)location.hash="#/map/country/"+encodeURIComponent(mapAt.country);
+    else if(mapAt.venue!==null||mapAt.country)location.hash="#/map";
+    else location.hash="#/";
+  }
 });
 
 fetch(AGG+"index.json").then(r=>{if(!r.ok)throw new Error("index: HTTP "+r.status);return r.json();}).then(ix=>{
