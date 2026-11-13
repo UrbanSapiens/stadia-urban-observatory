@@ -130,7 +130,8 @@ def aggregate(entry, doc, recs, rank, n_all, architect):
     return {"slug": entry["slug"], "name": m["name"], "country": m.get("country") or "", "tags": tags,
             "lat": m["latitude"], "lng": m["longitude"],            # the stadium itself, not a place record
             "architect": architect, "collected": m.get("collectionLabel"),
-            "opened": reliable_year(entry.get("openingYear")), "capacity": entry.get("capacity"),
+            "opened": reliable_year(m.get("openingYear")), "openedKind": m.get("openingYearKind") or "opened",
+            "capacity": entry.get("capacity"),
             "n": n, "rank": rank, "cats": [[c, cats[c]] for c in cat_order],
             "grid": [flat(g) for g in grid],
             "types": [[t, c, v] for (t, c), v in top_types], "typeGrid": [flat(g) for g in tgrid],

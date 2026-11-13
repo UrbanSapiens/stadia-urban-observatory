@@ -61,23 +61,7 @@ re-derives each one from the records before saving. The audit checks event
 claims against ground truth, duplicate venues, placeholder metrics, impossible
 opening years, and the country field against the coordinates.
 
-## Author
-
-**Gustavo Garcia do Amaral**, University of Kansas.
-
 ## License
 
 - **Code** (`scripts/`, dashboard source) — MIT, see [`LICENSE`](LICENSE)
 - **Data** (`data/`, `Stadia_database.xlsx`) — CC BY 4.0, see [`LICENSE-DATA`](LICENSE-DATA)
-
-## Citation
-
-```bibtex
-@misc{amaral_stadia_urban_observatory,
-  author       = {Amaral, Gustavo Garcia do},
-  title        = {Stadia Urban Observatory: 4-D urban model analysis of
-                  major event stadiums},
-  year         = {2026},
-  howpublished = {\url{https://github.com/UrbanSapiens/stadia-urban-observatory}}
-}
-```

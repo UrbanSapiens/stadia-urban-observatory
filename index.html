@@ -281,9 +281,9 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 
 <section class="blk" id="timeline">
   <div class="head reveal">
-    <div><div class="mono">03 / Timeline</div><h2>When the venues opened</h2></div>
+    <div><div class="mono">03 / Timeline</div><h2>When the current buildings opened</h2></div>
     <div>
-      <p class="note">One dot is one venue on the year it opened. <span data-n="dated"></span> of <span data-n="venues"></span> have a reliable opening year on record. Choose a programme to light it up.</p>
+      <p class="note">One dot is one venue on the year its current building opened, or reopened after a rebuild. <span data-n="dated"></span> of <span data-n="venues"></span> have a reliable opening year on record. Choose a programme to light it up.</p>
       <p class="note">The peaks follow the events chosen for the study. They do not describe when stadiums were built in general.</p>
     </div>
   </div>
@@ -476,7 +476,7 @@ function setInteractive(on){if(map)HANDLERS.forEach(k=>{on?map[k].enable():map[k
 function showOnMap(i){
   const v=V[i],card=$("card");card.hidden=false;card.innerHTML="";
   const k=h("div","mono",v[2]||"Venue");k.style.color="#8a8780";
-  const dl=h("dl");[["Mapped places",fmt(v[7])],["Opened",v[5]||"not on record"]].forEach(([a,b])=>dl.append(h("dt",null,a),h("dd",null,String(b))));
+  const dl=h("dl");[["Mapped places",fmt(v[7])],["Current building",v[5]||"year not on record"]].forEach(([a,b])=>dl.append(h("dt",null,a),h("dd",null,String(b))));
   const a=h("a",null,"Open the venue page →");a.href="#/venue/"+v[0];
   card.append(k,h("h3",null,v[1]),dl,a);
   if(mapReady)map.flyTo({center:[v[4],v[3]],zoom:14.6,duration:2400,essential:true});else pendingVenue=i;
@@ -629,7 +629,7 @@ function renderVenue(v){
   $("prev").href="#/venue/"+V[(i-1+V.length)%V.length][0];$("next").href="#/venue/"+V[(i+1)%V.length][0];
   $("crumbCountry").textContent=v.country||"Country not on record";$("crumbName").textContent=v.name;$("name").textContent=v.name;
   const meta=$("meta");meta.innerHTML="";
-  [["",v.country],["",v.tags.join(" · ")],["Opened ",v.opened],["Capacity ",v.capacity?fmt(v.capacity):null],["Data collected ",v.collected]].forEach(([k,val])=>{
+  [["",v.country],["",v.tags.join(" · ")],[v.openedKind==="rebuilt"?"Rebuilt ":"Opened ",v.opened],["Capacity ",v.capacity?fmt(v.capacity):null],["Data collected ",v.collected]].forEach(([k,val])=>{
     if(!val)return;const s=h("span");s.append(k,h("b",null,String(val)));meta.append(s);});
   // Architect of the current building, from Wikidata. Shown only where a source exists.
   if(v.architect){const ar=h("span","arch");ar.title="Source: Wikidata";ar.append("Architect ",h("b",null,v.architect.replace(/; /g," · ")));meta.append(ar);}
