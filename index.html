@@ -118,6 +118,7 @@ h2{font-weight:600;font-size:clamp(30px,4.6vw,68px);line-height:.95;letter-spaci
 #years circle,#nodate circle{cursor:pointer;transition:fill .15s,opacity .15s}
 .undated{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(18px,4vw,64px);margin-top:30px;padding-top:18px;border-top:1px dashed var(--line)}
 .undated p{margin:0;color:var(--mid);font-size:14px}.undated strong{color:var(--fg);font-weight:500}
+.maplibregl-popup-content{background:#fff;color:#111;font:12px/1.3 var(--sans,inherit);padding:6px 9px;border-radius:0}
 .tip{position:fixed;pointer-events:none;z-index:80;background:#fff;color:#111;font-size:12px;padding:6px 9px;white-space:nowrap}
 .tip span{font-family:var(--mono);color:#555;margin-left:8px}
 .four{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--rule)}
@@ -809,6 +810,7 @@ function simpson(counts){
   const n=counts.reduce((a,b)=>a+b,0);if(n<2)return 0;
   return 1-counts.reduce((a,x)=>a+x*(x-1),0)/(n*(n-1));
 }
+const D_ZOOM_3D=0.95;   // 3D opening view: closer than the fitted square, the corners run off the frame
 const MIX_TOP=0.9;   // mix value drawn at the bright end of the ramp
 function gridFeatures(v){
   const N=CFG.gridN,nC=v.cats.length,cells=new Map();
@@ -818,7 +820,7 @@ function gridFeatures(v){
   const latH=CFG.radius/M_PER_DEG,lonH=CFG.radius/(M_PER_DEG*Math.cos(v.lat*Math.PI/180)),cLat=2*latH/N,cLon=2*lonH/N;
   v._cellList=list.map(c=>{const row=Math.floor(c.k/N),col=c.k%N;return{...c,lat:v.lat+latH-(row+0.5)*cLat,lng:v.lng-lonH+(col+0.5)*cLon};});
   return list.map(c=>{const row=Math.floor(c.k/N),col=c.k%N,w=v.lng-lonH+col*cLon,e=w+cLon,n=v.lat+latH-row*cLat,s=n-cLat;
-    const rgb=c.mix===null?[74,74,74]:posterRamp(c.mix/MIX_TOP);
+    const rgb=posterRamp((c.mix||0)/MIX_TOP);   // too few places for a mix value: lowest colour, never grey
     return{type:"Feature",geometry:{type:"Polygon",coordinates:[[[w,s],[e,s],[e,n],[w,n],[w,s]]]},
       properties:{col:`rgb(${rgb})`,total:c.total,cats:c.counts.filter(x=>x>0).length,mix:c.mix===null?-1:+c.mix.toFixed(2),hCount:c.total/maxCount}};});
 }
@@ -851,7 +853,7 @@ function paintCtl(){
   seg("Base","base",[["dark","Dark"],["sat","Satellite"]]);
   const leg=$("leg");leg.innerHTML="";
   const r=h("div");r.style.cssText="display:flex;align-items:center;gap:8px;margin-bottom:5px";r.append("one kind",h("div","ramp"),"evenly mixed");leg.append(r);
-  const g=h("div");g.append(h("i"),`fewer than ${CFG.mixMinPlaces} places: no mix value`);leg.append(g);
+  leg.append(h("div",null,`Cells with fewer than ${CFG.mixMinPlaces} places take the lowest colour: too few to compute a mix.`));
   if(dState.view3d)leg.append(h("div",null,"Height: number of places in the cell. Relative, not physical."));
 }
 function applyD(cam){
@@ -900,7 +902,7 @@ function setD(v,feats){
   const latH=CFG.radius/M_PER_DEG,lonH=CFG.radius/(M_PER_DEG*Math.cos(v.lat*Math.PI/180));
   dmap.resize();
   dmap.fitBounds([[v.lng-lonH,v.lat-latH],[v.lng+lonH,v.lat+latH]],{padding:30,duration:0,pitch:dState.view3d?55:0,bearing:dState.view3d?-25:0});
-  if(dState.view3d)dmap.setZoom(dmap.getZoom()+0.45);
+  dmap.setZoom(dmap.getZoom()+(dState.view3d?D_ZOOM_3D:0));
   applyD(false);
 }
 
