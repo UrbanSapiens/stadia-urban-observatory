@@ -810,7 +810,6 @@ function simpson(counts){
   const n=counts.reduce((a,b)=>a+b,0);if(n<2)return 0;
   return 1-counts.reduce((a,x)=>a+x*(x-1),0)/(n*(n-1));
 }
-const D_ZOOM_3D=0.95;   // 3D opening view: closer than the fitted square, the corners run off the frame
 const MIX_TOP=0.9;   // mix value drawn at the bright end of the ramp
 function gridFeatures(v){
   const N=CFG.gridN,nC=v.cats.length,cells=new Map();
@@ -862,7 +861,7 @@ function applyD(cam){
   dmap.setLayoutProperty("cells-flat","visibility",dState.view3d?"none":"visible");
   dmap.setLayoutProperty("sat","visibility",dState.base==="sat"?"visible":"none");
   dmap.setPaintProperty("cells-3d","fill-extrusion-height",["*",["get","hCount"],dState.maxH]);
-  if(cam)dmap.easeTo(dState.view3d?{pitch:55,bearing:-25,duration:700}:{pitch:0,bearing:0,duration:700});
+  if(cam){dmap.easeTo(dState.view3d?{pitch:55,bearing:-25,duration:700}:{pitch:0,bearing:0,duration:700});dmap.once("moveend",()=>{if(cur)fitD(cur);});}
 }
 function updateDmap(v){
   zones=[];const feats=gridFeatures(v);paintCtl();paintZones();
@@ -895,6 +894,20 @@ function updateDmap(v){
     });
   }else if(dReady)setD(v,feats);else dQueued=[v,feats];
 }
+// Fit the 1.5 km circle inside the frame as it is actually drawn (tilted and rotated in 3D), whatever the frame size.
+// fitBounds fits the flat square, which in 3D either leaves margins or runs off the bottom.
+function fitD(v){
+  const box=dmap.getContainer(),W=box.clientWidth,H=box.clientHeight;if(!W||!H)return;
+  const pad=dState.view3d?{t:90,b:28,l:28,r:28}:{t:24,b:24,l:24,r:24};   // towers rise above the ground circle
+  const ring=circlePoly(v.lng,v.lat,CFG.radius);
+  const bb=()=>{let a=1e9,b=1e9,c=-1e9,d=-1e9;ring.forEach(p=>{const q=dmap.project(p);a=Math.min(a,q.x);b=Math.min(b,q.y);c=Math.max(c,q.x);d=Math.max(d,q.y);});return[a,b,c,d];};
+  for(let k=0;k<4;k++){
+    let[a,b,c,d]=bb();
+    dmap.setZoom(dmap.getZoom()+Math.log2(Math.min((W-pad.l-pad.r)/(c-a),(H-pad.t-pad.b)/(d-b))));
+    [a,b,c,d]=bb();
+    dmap.panBy([(a+c)/2-(pad.l+W-pad.r)/2,(b+d)/2-(pad.t+H-pad.b)/2],{duration:0});
+  }
+}
 function setD(v,feats){
   dmap.getSource("cells").setData({type:"FeatureCollection",features:feats});
   dmap.getSource("stad").setData({type:"Feature",geometry:{type:"Point",coordinates:[v.lng,v.lat]},properties:{}});
@@ -902,7 +915,7 @@ function setD(v,feats){
   const latH=CFG.radius/M_PER_DEG,lonH=CFG.radius/(M_PER_DEG*Math.cos(v.lat*Math.PI/180));
   dmap.resize();
   dmap.fitBounds([[v.lng-lonH,v.lat-latH],[v.lng+lonH,v.lat+latH]],{padding:30,duration:0,pitch:dState.view3d?55:0,bearing:dState.view3d?-25:0});
-  dmap.setZoom(dmap.getZoom()+(dState.view3d?D_ZOOM_3D:0));
+  fitD(v);
   applyD(false);
 }
 
