@@ -331,10 +331,6 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
   </div>
   <div class="chips reveal" id="chips"></div>
   <div class="scroll reveal"><svg id="years" role="img" aria-label="Venues by opening year"></svg></div>
-  <div class="undated reveal">
-    <p><strong><span data-n="undated"></span> venues without a reliable opening year.</strong> They are in the study and on the map. Their year is missing from the record or outside <span data-n="range"></span>.</p>
-    <svg id="nodate" role="img" aria-label="Venues without a reliable opening year"></svg>
-  </div>
 </section>
 
 <section class="blk" id="method">
@@ -696,9 +692,6 @@ function initHome(atlas){
     if(y%10===0){svg.append(el("line",{x1:x,x2:x,y1:base+r+3,y2:base+r+8,stroke:"#555","stroke-width":1}),el("text",{x,y:base+r+20,"text-anchor":"middle"},y));}
     (byYear[y]||[]).sort(srt).forEach((v,i)=>add(svg,v,x,base-i*step));
   }
-  const s2=$("nodate"),perRow=34;
-  s2.setAttribute("viewBox",`0 0 ${perRow*step} ${Math.max(1,Math.ceil(undated.length/perRow))*step}`);
-  undated.slice().sort(srt).forEach((v,i)=>add(s2,v,(i%perRow+0.5)*step,(Math.floor(i/perRow)+0.5)*step));
   const chips=$("chips");
   PROG.forEach(([k,label])=>{
     const n=V.filter(v=>v[6]===k).length;if(!n)return;
