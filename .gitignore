@@ -7,3 +7,9 @@ Obsolete/
 
 # Private project notes for Claude Code
 CLAUDE.md
+
+# Local working material, not part of the public site
+AGENTS.md
+codex/
+cache/
+HANDOFF_*.md

@@ -24,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 OUT = ROOT / "agg"
-ARCHITECTS = ROOT / "outputs" / "architects_wikidata.csv"   # scripts/fetch_architects.py
+ARCHITECTS = ROOT / "outputs" / "architects_site.csv"   # scripts/build_architects_site.py (value + its source)
 GRID_N = 70          # cells per side over the 3 km square (grid of the printed models)
 RADIUS_M = 1500
 RING_M = 150         # straight-line ring width
@@ -151,7 +151,7 @@ def aggregate(entry, doc, recs, rank, n_all, architect):
 
     return {"slug": entry["slug"], "name": m["name"], "country": m.get("country") or "", "tags": tags,
             "lat": m["latitude"], "lng": m["longitude"],            # the stadium itself, not a place record
-            "architect": architect, "collected": m.get("collectionLabel"),
+            "architect": architect[0], "architectSource": architect[1], "collected": m.get("collectionLabel"),
             "opened": reliable_year(m.get("openingYear")), "openedKind": m.get("openingYearKind") or "opened",
             "capacity": entry.get("capacity"),
             "n": n, "rank": rank, "cats": [[c, cats[c]] for c in cat_order],
@@ -206,7 +206,7 @@ def main():
     ix = json.load(open(DATA / "index.json"))
     arch = {}
     if ARCHITECTS.exists():
-        arch = {r["slug"]: r["architects"] for r in csv.DictReader(open(ARCHITECTS, encoding="utf-8")) if r["architects"]}
+        arch = {r["slug"]: (r["architects"], r["source"]) for r in csv.DictReader(open(ARCHITECTS, encoding="utf-8")) if r["architects"]}
     docs = {x["slug"]: json.load(open(DATA / f"{x['slug']}.json")) for x in ix}
     recs = {s: records(d) for s, d in docs.items()}
     by_count = sorted(ix, key=lambda x: (-len(recs[x["slug"]]), x["slug"]))
@@ -219,7 +219,7 @@ def main():
     aggs, n_lede = {}, 0
     for x in ix:
         s = x["slug"]
-        a = aggregate(x, docs[s], recs[s], rank[s], len(ix), arch.get(s))
+        a = aggregate(x, docs[s], recs[s], rank[s], len(ix), arch.get(s, (None, None)))
         validate(a, docs[s])
         assert not any(k in a for k in ("p", "places", "points")), "raw records must not be published"
         a["study"] = {"places": a["n"], "cellMix": a["cellMix"], "medianDist": x.get("medianDist"),
