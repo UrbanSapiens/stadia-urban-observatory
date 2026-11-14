@@ -25,11 +25,14 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 OUT = ROOT / "agg"
 ARCHITECTS = ROOT / "outputs" / "architects_site.csv"   # scripts/build_architects_site.py (value + its source)
+BUILT = ROOT / "outputs" / "built_proportion_all.csv"     # scripts/compare_building_sources.py --all
 GRID_N = 70          # cells per side over the 3 km square (grid of the printed models)
 RADIUS_M = 1500
 RING_M = 150         # straight-line ring width
 N_TYPES = 10         # most common types kept per venue, overall
 N_TYPES_PER_KIND = 8 # and within each kind, so the type list can follow the selected kind
+N_RING_TYPES = 3     # most common types listed per distance ring
+VAGUE_TYPES = {"unknown", "point of interest", "establishment", "building"}   # platform labels that name no activity
 MIX_MIN_PLACES = 5   # a cell needs this many places before its mix of kinds is computed
 MIX_MIN_CELLS = 10   # a venue needs this many such cells before it gets a venue-level mix
 N_ATLAS = 24         # venues drawn on the landing atlas, at even steps by place count
@@ -85,7 +88,13 @@ def flat(d):
     return [x for kv in sorted(d.items()) for x in kv]
 
 
-def aggregate(entry, doc, recs, rank, n_all, architect):
+def ring_types(counts):
+    """Most common types of one ring as [type, count], ties broken by name. Vague platform labels are left out."""
+    named = [(t, c) for t, c in counts.items() if t not in VAGUE_TYPES]
+    return [[t, c] for t, c in sorted(named, key=lambda tc: (-tc[1], tc[0]))[:N_RING_TYPES]]
+
+
+def aggregate(entry, doc, recs, rank, n_all, architect, built):
     m = doc["m"]
     n = len(recs)
     cats, types = {}, {}
@@ -114,8 +123,13 @@ def aggregate(entry, doc, recs, rank, n_all, architect):
             tg[k] = tg.get(k, 0) + 1
     n_rings = RADIUS_M // RING_M
     rings = [0] * n_rings
+    ring_kinds = [dict() for _ in range(n_rings)]     # what is in each ring: count per kind
+    ring_type_counts = [dict() for _ in range(n_rings)]
     for r in recs:
-        rings[min(n_rings - 1, int(r[2] // RING_M))] += 1
+        j = min(n_rings - 1, int(r[2] // RING_M))
+        rings[j] += 1
+        ring_kinds[j][cidx[r[3]]] = ring_kinds[j].get(cidx[r[3]], 0) + 1
+        ring_type_counts[j][r[4]] = ring_type_counts[j].get(r[4], 0) + 1
     ring_density = [round(c / (math.pi * (((i + 1) * RING_M) ** 2 - (i * RING_M) ** 2) / 1e6), 1) for i, c in enumerate(rings)]
     # Mix of kinds inside a cell: Simpson index, 1 - sum n(n-1) / N(N-1). Quantity is not in it.
     per_cell = {}
@@ -161,7 +175,9 @@ def aggregate(entry, doc, recs, rank, n_all, architect):
             "topTypes": list(range(min(N_TYPES, len(top_types)))),
             "kindTypes": [[tidx[k] for k in by_kind[c]] for c in cat_order], "kindNTypes": kind_n_types,
             "cellMix": cell_mix, "cellMixCells": len(mixes),
-            "rings": rings, "ringDensity": ring_density, "medLin": med_lin, "medNet": med_net,
+            "rings": rings, "ringDensity": ring_density,
+            "ringKinds": [flat(g) for g in ring_kinds], "ringTypes": [ring_types(t) for t in ring_type_counts],
+            "built": built, "medLin": med_lin, "medNet": med_net,
             "net": {"intersections": s.get("numberOfIntersections"),
                     "block": round(s["avgEdgeLength"], 1) if s.get("avgEdgeLength") else None,
                     "streetKm": round(s["edgeLengthTotal"] / 1000, 1) if s.get("edgeLengthTotal") else None},
@@ -176,12 +192,28 @@ def validate(agg, doc):
     for p in doc["p"]:
         d = math.sqrt(((p[1] - m["longitude"]) * kx) ** 2 + ((p[0] - m["latitude"]) * K) ** 2)
         if d <= RADIUS_M:
-            inside.append((d, p[2] or "uncategorized"))
+            inside.append((d, p[2] or "uncategorized", p[4] or "unknown"))
     slug = agg["slug"]
     assert len(inside) == agg["n"], (slug, "count")
     assert sum(c for _, c in agg["cats"]) == agg["n"], (slug, "category total")
     assert sum(sum(g[1::2]) for g in agg["grid"]) == agg["n"], (slug, "grid total")
     assert sum(agg["rings"]) == agg["n"], (slug, "ring total")
+    # Ring panel: kinds and most common types per ring, recounted ring by ring from the records.
+    names = [c for c, _ in agg["cats"]]
+    for j, (pairs, listed) in enumerate(zip(agg["ringKinds"], agg["ringTypes"])):
+        here = [x for x in inside if min(len(agg["rings"]) - 1, int(x[0] // RING_M)) == j]
+        assert len(here) == agg["rings"][j] == sum(pairs[1::2]), (slug, "ring kinds total", j)
+        for ci, c in zip(pairs[0::2], pairs[1::2]):
+            assert sum(1 for x in here if x[1] == names[ci]) == c, (slug, "ring kind", j, names[ci])
+        tally = {}
+        for x in here:
+            tally[x[2]] = tally.get(x[2], 0) + 1
+        for t, c in listed:
+            assert t not in VAGUE_TYPES and tally[t] == c, (slug, "ring type", j, t)
+        floor = listed[-1][1] if len(listed) == N_RING_TYPES else 0
+        assert all(c <= floor for t, c in tally.items() if t not in VAGUE_TYPES and t not in [l[0] for l in listed]), (slug, "ring type order", j)
+    if agg["built"]:
+        assert 0 < agg["built"]["share"] <= 100, (slug, "built share")
     for (t, c, v), g in zip(agg["types"], agg["typeGrid"]):
         assert sum(g[1::2]) == v, (slug, "type grid", t)
     for ci, idxs in enumerate(agg["kindTypes"]):
@@ -207,6 +239,13 @@ def main():
     arch = {}
     if ARCHITECTS.exists():
         arch = {r["slug"]: (r["architects"], r["source"]) for r in csv.DictReader(open(ARCHITECTS, encoding="utf-8")) if r["architects"]}
+    built = {}
+    if BUILT.exists():
+        for r in csv.DictReader(open(BUILT, encoding="utf-8")):
+            if r["status"] == "ok" and 0 < float(r["ratio_all"]) <= 1:
+                # share of the 1,500 m circle covered by building footprints, in percent
+                built[r["slug"]] = {"share": round(100 * float(r["ratio_all"]), 1),
+                                    "osmOnly": all(int(r[k]) == 0 for k in ("n_google", "n_microsoft", "n_other"))}
     docs = {x["slug"]: json.load(open(DATA / f"{x['slug']}.json")) for x in ix}
     recs = {s: records(d) for s, d in docs.items()}
     by_count = sorted(ix, key=lambda x: (-len(recs[x["slug"]]), x["slug"]))
@@ -219,10 +258,11 @@ def main():
     aggs, n_lede = {}, 0
     for x in ix:
         s = x["slug"]
-        a = aggregate(x, docs[s], recs[s], rank[s], len(ix), arch.get(s, (None, None)))
+        a = aggregate(x, docs[s], recs[s], rank[s], len(ix), arch.get(s, (None, None)), built.get(s))
         validate(a, docs[s])
         assert not any(k in a for k in ("p", "places", "points")), "raw records must not be published"
         a["study"] = {"places": a["n"], "cellMix": a["cellMix"], "medianDist": x.get("medianDist"),
+                      "built": a["built"]["share"] if a["built"] else None,
                       "intersections": x.get("intersections"), "blockLength": x.get("blockLength")}
         aggs[s] = a
         n_lede += len(a["lede"])
@@ -256,6 +296,7 @@ def main():
                    for x in sorted(ix, key=lambda x: x["name"].lower())],
         "study": {"places": sorted(a["n"] for a in aggs.values()),
                   "cellMix": sorted(a["cellMix"] for a in aggs.values() if a["cellMix"] is not None),
+                  "built": sorted(a["built"]["share"] for a in aggs.values() if a["built"]),
                   "medianDist": sorted(x["medianDist"] for x in ix if x.get("medianDist")),
                   "intersections": sorted(x["intersections"] for x in ix if x.get("intersections")),
                   "blockLength": sorted(x["blockLength"] for x in ix if x.get("blockLength"))},
