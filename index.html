@@ -681,7 +681,7 @@ function initHome(atlas){
   const dots=[];let active=null;
   const svg=$("years"),W=1200,nY=CFG.yearMax-CFG.yearMin+1,step=(W-24)/nY,r=step*0.43;
   const byYear={};dated.forEach(v=>{(byYear[v[5]]=byYear[v[5]]||[]).push(v);});
-  const maxStack=Math.max(1,...Object.values(byYear).map(a=>a.length)),H=maxStack*step+34,base=H-22;
+  const maxStack=Math.max(1,...Object.values(byYear).map(a=>a.length)),H=maxStack*step+48,base=H-36;   // 36 leaves room for the year labels under the axis
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
   svg.append(el("line",{x1:0,x2:W,y1:base+r+3,y2:base+r+3,stroke:"#555","stroke-width":1}));
   const add=(parent,v,cx,cy)=>{const c=el("circle",{cx,cy,r,fill:"#fff"});bindTip(c,v);c.addEventListener("click",()=>{tip.hidden=true;location.hash="#/map/"+v[0];});parent.append(c);dots.push([c,v[6]]);};
