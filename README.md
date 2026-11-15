@@ -31,7 +31,6 @@ intersection density, and block length.
 index.html            the site: landing, map and venue pages (reads agg/ only)
 agg/index.json        venue list, study distributions, atlas plates
 agg/<slug>.json       one venue as counts: per grid cell and kind, per distance ring
-classic.html          the previous dashboard (reads data/ and its embedded IX array)
 data/<slug>.json      per-place working records; the m block is the source of truth
 data/geo/             country outlines (Natural Earth 1:110m, public domain)
 scripts/              audit, sync, aggregate build, collection dates, architects
@@ -48,12 +47,12 @@ Read [`DATA_AUDIT.md`](DATA_AUDIT.md) first. The short version:
 
 ```bash
 python3 scripts/audit_data.py        # must exit clean: fix every ERROR
-python3 scripts/sync_index.py        # data/index.json and the IX array in classic.html
+python3 scripts/sync_index.py        # data/index.json
 python3 scripts/build_site_data.py   # agg/: what the site shows; stops if a sentence is not true
 python3 scripts/audit_data.py        # re-run, expect 0 ERROR
 ```
 
-Commit `data/`, `agg/` and `classic.html` together. The site reads `agg/`, so a
+Commit `data/` and `agg/` together. The site reads `agg/`, so a
 data change that is not followed by `build_site_data.py` does not reach it.
 
 `build_site_data.py` writes every sentence shown at the top of a venue page and

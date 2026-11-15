@@ -21,7 +21,7 @@ import json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
-HTML = os.path.join(ROOT, "classic.html")   # the previous dashboard; the new site reads agg/ (build_site_data.py)
+HTML = os.path.join(ROOT, "classic.html")   # previous dashboard, removed 2026-11-15; synced only if present
 
 IDENTITY_FIELDS = ["name", "city", "country", "capacity", "openingYear", "primarySport"]
 
@@ -70,18 +70,23 @@ def main():
         f.write("[\n" + ",\n".join(
             json.dumps(e, ensure_ascii=False, separators=(",", ":")) for e in idx) + "\n]")
 
-    html = open(HTML).read()
-    ix_block = "const IX=[\n" + ",\n".join(
-        json.dumps(e, ensure_ascii=False, separators=(",", ":")) for e in idx) + "\n];"
-    new_html, n = re.subn(r"const IX=\[\n.*?\n\];", lambda _: ix_block, html,
-                          count=1, flags=re.S)
-    if n != 1:
-        print("!! could not locate the IX array in index.html — not updated", file=sys.stderr)
-        return 1
-    open(HTML, "w").write(new_html)
+    # The previous dashboard (classic.html) was removed on 2026-11-15. If the file is
+    # ever restored, its embedded IX array is kept in step; otherwise only index.json.
+    wrote_html = False
+    if os.path.exists(HTML):
+        html = open(HTML).read()
+        ix_block = "const IX=[\n" + ",\n".join(
+            json.dumps(e, ensure_ascii=False, separators=(",", ":")) for e in idx) + "\n];"
+        new_html, n = re.subn(r"const IX=\[\n.*?\n\];", lambda _: ix_block, html,
+                              count=1, flags=re.S)
+        if n != 1:
+            print("!! could not locate the IX array in classic.html, not updated", file=sys.stderr)
+            return 1
+        open(HTML, "w").write(new_html)
+        wrote_html = True
 
-    print(f"{len(idx)} entries synced; {len(changed)} changed: {', '.join(changed) or '—'}")
-    print("updated data/index.json and the IX array in index.html")
+    print(f"{len(idx)} entries synced; {len(changed)} changed: {', '.join(changed) or 'none'}")
+    print("updated data/index.json" + (" and the IX array in classic.html" if wrote_html else ""))
     return 0
 
 

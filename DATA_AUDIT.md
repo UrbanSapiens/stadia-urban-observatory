@@ -148,8 +148,9 @@ re-run, run the two scripts above afterwards.
 `agg/`, written by `scripts/build_site_data.py`: counts per 43 m cell and kind,
 counts per 150 m ring, top types, summary numbers and the lede sentences, each
 re-derived from the records before saving (996 sentences on this build). No
-place coordinates are in `agg/`. The previous dashboard is `classic.html`;
-`sync_index.py` now writes its IX array there.
+place coordinates are in `agg/`. The previous dashboard, `classic.html`, was
+removed on 2026-11-15 (it remains in the git history); `sync_index.py` now writes
+only `data/index.json`.
 
 **Add `python3 scripts/build_site_data.py` to the procedure above, after the
 sync.** Without it the site keeps the old numbers.
