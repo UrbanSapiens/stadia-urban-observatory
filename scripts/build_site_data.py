@@ -7,8 +7,7 @@ Out:  agg/index.json        venue list, study distributions, atlas plates
       agg/<slug>.json       one venue: counts per grid cell and category, counts per
                             distance ring, top types, summary numbers, lede sentences
 
-Input is data/<slug>.json (the per-place records). Those stay the working data;
-the site itself only fetches agg/.
+Place input is core/venues/<slug>/places.csv. The site itself only fetches agg/.
 
 Every lede sentence is generated here and re-derived from the raw records by
 validate(); the build stops if one is not true.
@@ -20,9 +19,12 @@ aggregate() under the "paper" key and switch SHOW_PAPER_MEASURES on in index.htm
 import csv, json, math, statistics
 from pathlib import Path
 
+import pandas as pd
+
 # ---------------- config ----------------
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
+CORE = ROOT / "core" / "venues"
 OUT = ROOT / "agg"
 ARCHITECTS = ROOT / "outputs" / "architects_site.csv"   # scripts/build_architects_site.py (value + its source)
 BUILT = ROOT / "outputs" / "built_proportion_all.csv"     # scripts/compare_building_sources.py --all
@@ -58,17 +60,31 @@ def reliable_year(y):
     return y if YEAR_MIN <= y <= YEAR_MAX else None
 
 
-def records(doc):
+def records(slug, doc):
     """Records inside the circle as (dx, dy, straight-line m, category, type, network m)."""
     m = doc["m"]
     lat0, lng0 = m["latitude"], m["longitude"]
     kx = K * math.cos(math.radians(lat0))
     out = []
-    for p in doc["p"]:
-        dx, dy = (p[1] - lng0) * kx, (p[0] - lat0) * K
-        d = math.hypot(dx, dy)
-        if d <= RADIUS_M:
-            out.append((dx, dy, d, (p[2] or "uncategorized"), (p[4] or "unknown"), p[3]))
+    path = CORE / slug / "places.csv"
+    if not path.exists():
+        raise FileNotFoundError(f"missing core places file: {slug}: {path}")
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            if row["keep"] not in {"1", "True", "true"}:
+                continue
+            lat, lng = float(row["lat"]), float(row["lon"])
+            dx, dy = (lng - lng0) * kx, (lat - lat0) * K
+            d = math.hypot(dx, dy)
+            if d <= RADIUS_M:
+                try:
+                    walk_m = float(row["walk_m"])
+                    if not math.isfinite(walk_m):
+                        walk_m = None
+                except (TypeError, ValueError):
+                    walk_m = None
+                out.append((dx, dy, d, row["category"] or "uncategorized",
+                            row["type"] or "unknown", walk_m))
     return out
 
 
@@ -151,11 +167,14 @@ def aggregate(entry, doc, recs, rank, n_all, architect, built):
     lede = []
     if n:
         lede.append(f"{n:,} mapped place{'s' if n != 1 else ''} within 1.5 km. {ordinal(rank)} of {n_all} venues by count.")
-    if n >= 20:
-        top = cat_order[0]
+    named_kinds = [c for c in cat_order if c != "uncategorized"]
+    named_n = sum(cats[c] for c in named_kinds)
+    if named_n >= 20:
+        top = named_kinds[0]
         share = round(100 * cats[top] / n)
-        top3 = round(100 * sum(cats[c] for c in cat_order[:3]) / n)
-        lede.append(f"{top.capitalize()} leads with {share}% of places. The top three categories hold {top3}%.")
+        top3 = round(100 * sum(cats[c] for c in named_kinds[:3]) / n)
+        lede.append(f"{top.capitalize()} leads with {share}% of places. The top three kinds hold {top3}%.")
+    if n >= 20:
         best = max(range(n_rings), key=lambda i: ring_density[i])
         lede.append(f"Places are densest {best * RING_M} to {(best + 1) * RING_M} m from the stadium: {round(ring_density[best]):,} per km².")
         if med_net and med_lin:
@@ -188,11 +207,14 @@ def validate(agg, doc):
     """Re-derive every number used in the lede from the raw records, by a different route."""
     m = doc["m"]
     kx = K * math.cos(math.radians(m["latitude"]))
+    frame = pd.read_csv(CORE / agg["slug"] / "places.csv")
+    frame = frame[frame["keep"].isin([1, True, "1", "True", "true"])]
     inside = []
-    for p in doc["p"]:
-        d = math.sqrt(((p[1] - m["longitude"]) * kx) ** 2 + ((p[0] - m["latitude"]) * K) ** 2)
+    for p in frame.itertuples(index=False):
+        d = math.sqrt(((p.lon - m["longitude"]) * kx) ** 2 + ((p.lat - m["latitude"]) * K) ** 2)
         if d <= RADIUS_M:
-            inside.append((d, p[2] or "uncategorized", p[4] or "unknown"))
+            inside.append((d, p.category if pd.notna(p.category) and p.category else "uncategorized",
+                           p.type if pd.notna(p.type) and p.type else "unknown"))
     slug = agg["slug"]
     assert len(inside) == agg["n"], (slug, "count")
     assert sum(c for _, c in agg["cats"]) == agg["n"], (slug, "category total")
@@ -220,10 +242,18 @@ def validate(agg, doc):
         assert all(agg["types"][i][1] == agg["cats"][ci][0] for i in idxs), (slug, "kind types")
         counts = [agg["types"][i][2] for i in idxs]
         assert counts == sorted(counts, reverse=True), (slug, "kind types order")
+    named = [(kind, count) for kind, count in agg["cats"] if kind != "uncategorized"]
+    if sum(count for _, count in named) >= 20:
+        top = named[0][0]
+        assert sum(1 for x in inside if x[1] == top) == named[0][1], (slug, "top kind")
+        assert all(named[0][1] >= count for _, count in named), (slug, "top kind is the largest")
+        share = round(100 * named[0][1] / agg["n"])
+        top3 = round(100 * sum(count for _, count in named[:3]) / agg["n"])
+        sentence = f"{top.capitalize()} leads with {share}% of places. The top three kinds hold {top3}%."
+        assert sentence in agg["lede"], (slug, "leading kind lede")
+    else:
+        assert not any(" leads with " in sentence for sentence in agg["lede"]), (slug, "leading kind lede omitted")
     if agg["n"] >= 20:
-        top = agg["cats"][0][0]
-        assert sum(1 for x in inside if x[1] == top) == agg["cats"][0][1], (slug, "top category")
-        assert all(agg["cats"][0][1] >= c for _, c in agg["cats"]), (slug, "top category is the largest")
         ds = sorted(x[0] for x in inside)
         h = len(ds) // 2
         mid = ds[h] if len(ds) % 2 else (ds[h - 1] + ds[h]) / 2      # median by position, not statistics.median
@@ -236,6 +266,11 @@ def validate(agg, doc):
 
 def main():
     ix = json.load(open(DATA / "index.json"))
+    old_n = {}
+    for x in ix:
+        path = OUT / f"{x['slug']}.json"
+        if path.exists():
+            old_n[x["slug"]] = json.load(path.open()).get("n")
     arch = {}
     if ARCHITECTS.exists():
         arch = {r["slug"]: (r["architects"], r["source"]) for r in csv.DictReader(open(ARCHITECTS, encoding="utf-8")) if r["architects"]}
@@ -247,7 +282,7 @@ def main():
                 built[r["slug"]] = {"share": round(100 * float(r["ratio_all"]), 1),
                                     "osmOnly": all(int(r[k]) == 0 for k in ("n_google", "n_microsoft", "n_other"))}
     docs = {x["slug"]: json.load(open(DATA / f"{x['slug']}.json")) for x in ix}
-    recs = {s: records(d) for s, d in docs.items()}
+    recs = {s: records(s, d) for s, d in docs.items()}
     by_count = sorted(ix, key=lambda x: (-len(recs[x["slug"]]), x["slug"]))
     rank = {x["slug"]: i + 1 for i, x in enumerate(by_count)}
     assert rank[by_count[0]["slug"]] == 1 and len(set(rank.values())) == len(ix)
@@ -261,7 +296,7 @@ def main():
         a = aggregate(x, docs[s], recs[s], rank[s], len(ix), arch.get(s, (None, None)), built.get(s))
         validate(a, docs[s])
         assert not any(k in a for k in ("p", "places", "points")), "raw records must not be published"
-        a["study"] = {"places": a["n"], "cellMix": a["cellMix"], "medianDist": x.get("medianDist"),
+        a["study"] = {"places": a["n"], "cellMix": a["cellMix"], "medianDist": a["medNet"],
                       "built": a["built"]["share"] if a["built"] else None,
                       "intersections": x.get("intersections"), "blockLength": x.get("blockLength")}
         aggs[s] = a
@@ -297,7 +332,7 @@ def main():
         "study": {"places": sorted(a["n"] for a in aggs.values()),
                   "cellMix": sorted(a["cellMix"] for a in aggs.values() if a["cellMix"] is not None),
                   "built": sorted(a["built"]["share"] for a in aggs.values() if a["built"]),
-                  "medianDist": sorted(x["medianDist"] for x in ix if x.get("medianDist")),
+                  "medianDist": sorted(a["medNet"] for a in aggs.values() if a["medNet"] is not None),
                   "intersections": sorted(x["intersections"] for x in ix if x.get("intersections")),
                   "blockLength": sorted(x["blockLength"] for x in ix if x.get("blockLength"))},
         "atlas": atlas,
@@ -307,6 +342,10 @@ def main():
     print(f"wrote agg/: {len(aggs)} venue files + index.json, {size/1e6:.1f} MB in total "
           f"(raw data/ is {sum(f.stat().st_size for f in DATA.glob('*.json'))/1e6:.0f} MB)")
     print(f"{n_lede} lede sentences validated; {sum(1 for a in aggs.values() if a['architect'])} venues with a sourced architect")
+    changes = [aggs[s]["n"] - old_n[s] for s in aggs if s in old_n and old_n[s] is not None]
+    print(f"total places: {sum(a['n'] for a in aggs.values())}; venues changed: "
+          f"{sum(change != 0 for change in changes)}; largest change: "
+          f"{max(changes, key=abs) if changes else 0}")
 
 
 if __name__ == "__main__":

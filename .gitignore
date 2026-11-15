@@ -13,3 +13,10 @@ AGENTS.md
 codex/
 cache/
 HANDOFF_*.md
+
+# Core database: cleaned place records, internal only (platform content, never public)
+core/
+
+# Working notes and unpublished research ideas
+notes/
+tools/

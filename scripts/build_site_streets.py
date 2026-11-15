@@ -5,9 +5,10 @@ from pathlib import Path
 import os
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = ROOT / "cache/streets_overture"
+SRC_DIR = ROOT / "cache/streets_core"
 GRAPH_DIR = ROOT / "cache/graphs_overture"
 DATA_DIR = ROOT / "data"
+CORE_DIR = ROOT / "core/venues"
 OUT_DIR = ROOT / "agg/streets"
 LIST_FILE = OUT_DIR / "index.json"
 REPORT_CSV = ROOT / "outputs/site_streets_report.csv"
@@ -32,6 +33,7 @@ import math
 
 import numpy as np
 import osmnx as ox
+import pandas as pd
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
@@ -156,17 +158,22 @@ def validate(slug, src, doc):
         expected_bands.append(expected)
         check(slug, f"V6 bands seg {index}", seg[3], expected)
 
+    frame = pd.read_csv(CORE_DIR / slug / "places.csv")
+    frame = frame[frame["keep"].isin([1, True, "1", "True", "true"])]
     inside = []
     tied = []
-    for row in doc["p"]:
-        x, y = local_xy(row[0], row[1], lat0, lng0)
+    for row in frame.itertuples(index=False):
+        x, y = local_xy(row.lat, row.lon, lat0, lng0)
         if math.hypot(x, y) > RADIUS_M:
             continue
-        inside.append(row)
+        kind = row.category if pd.notna(row.category) and row.category else "uncategorized"
+        place_type = row.type if pd.notna(row.type) and row.type else "unknown"
+        item = (x, y, kind, None, place_type)
+        inside.append(item)
         node_distances = np.hypot(node_xy[:, 0] - x, node_xy[:, 1] - y)
         node = int(np.argmin(node_distances))
         if node_distances[node] <= SNAP_MAX_M:
-            tied.append((row, node))
+            tied.append((item, node))
     expected_places = {
         "total": len(inside),
         "tied": len(tied),
@@ -181,7 +188,7 @@ def validate(slug, src, doc):
 
     expected_node_kinds = {}
     for row, node in tied:
-        kind = row[2] or "uncategorized"
+        kind = row[2]
         counts = expected_node_kinds.setdefault(str(node), {})
         counts[kind] = counts.get(kind, 0) + 1
     for node, counts in src["node_kinds"].items():
