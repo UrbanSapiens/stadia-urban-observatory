@@ -464,7 +464,7 @@ section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var
 </section>
 
 <div class="foot">
-  <p class="note">Built from counts per cell, kind and distance ring. Street measures come from the street network within the same circle. Street data © OpenStreetMap contributors (ODbL), with data from TomTom, via Overture Maps Foundation. Building footprints via Overture Maps Foundation: © OpenStreetMap contributors and Microsoft (ODbL); Google Open Buildings, Esri Community Maps contributors and Shi et al. 2023 (CC BY 4.0).</p>
+  <p class="note">Built from counts per cell, kind and distance ring. Street measures come from the Overture street network within the same circle, the same one as the walking section, footpaths included. Street data © OpenStreetMap contributors (ODbL), with data from TomTom, via Overture Maps Foundation. Building footprints via Overture Maps Foundation: © OpenStreetMap contributors and Microsoft (ODbL); Google Open Buildings, Esri Community Maps contributors and Shi et al. 2023 (CC BY 4.0).</p>
   <a class="btn go" id="tomap3" href="#/map">Back to map</a>
 </div>
 </div>
@@ -880,8 +880,8 @@ function renderVenue(v){
    {key:"cellMix",lab:"Mix of kinds",sub:"average over cells, 0 to 1",f:x=>x.toFixed(2),ends:["one kind","evenly mixed"],top:true,none:"too few places to compute"},
    {key:"medianDist",lab:"Median distance by street",sub:"stadium to places",f:x=>fmt(x)+" m",ends:["nearest","farthest"]},
    {key:"built",lab:"Built share of the circle",sub:"building footprints within 1.5 km",f:x=>x.toFixed(1)+"%",ends:["least built","most built"],top:true},
-   {key:"intersections",lab:"Street intersections",sub:"within 1.5 km",f:x=>fmt(x),ends:["fewest","most"],top:true},
-   {key:"blockLength",lab:"Average block length",sub:"street segment",f:x=>x+" m",ends:["shortest","longest"]}].forEach(o=>{
+   {key:"intersections",lab:"Street intersections",sub:"three or more segments meet, within 1.5 km, footpaths included",f:x=>fmt(x),ends:["fewest","most"],top:true},
+   {key:"blockLength",lab:"Average block length",sub:"street segment between corners, footpaths included",f:x=>x+" m",ends:["shortest","longest"]}].forEach(o=>{
     const all=STUDY[o.key],mine=v.study[o.key],f=o.f,log=o.log;
     const row=h("div","strip"),l=h("div","lab",o.lab);l.append(h("small",null,o.sub+(log?" · log scale":"")));
     const s=document.createElementNS(NS,"svg"),W2=900,H2=46;s.setAttribute("viewBox",`0 0 ${W2} ${H2}`);

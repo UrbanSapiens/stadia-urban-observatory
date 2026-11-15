@@ -21,6 +21,8 @@ from pathlib import Path
 
 import pandas as pd
 
+import build_street_measures
+
 # ---------------- config ----------------
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -28,6 +30,9 @@ CORE = ROOT / "core" / "venues"
 OUT = ROOT / "agg"
 ARCHITECTS = ROOT / "outputs" / "architects_site.csv"   # scripts/build_architects_site.py (value + its source)
 BUILT = ROOT / "outputs" / "built_proportion_all.csv"     # scripts/compare_building_sources.py --all
+STREETS_CORE = ROOT / "cache" / "streets_core"
+NODE_TABLE = ROOT / "cache" / "node_table_v2"
+OVERTURE_GRAPHS = ROOT / "cache" / "graphs_overture"
 GRID_N = 70          # cells per side over the 3 km square (grid of the printed models)
 RADIUS_M = 1500
 RING_M = 150         # straight-line ring width
@@ -45,6 +50,7 @@ PROGRAMME = {"FIFA World Cup": "wc", "Olympic Games": "og", "UEFA Euro Cup": "eu
 EVENT_TAGS = [("fifaWorldCup", "FIFA World Cup", "fifaWorldCupYear"), ("olympicGames", "Olympic Games", "olympicGamesYear"),
               ("uefaEuroCup", "UEFA Euro", "uefaEuroCupYear"), ("mls", "MLS", None), ("mlb", "MLB", None),
               ("nfl", "NFL", None), ("nwsl", "NWSL", None), ("chinaStadiumDiplomacy", "China stadium diplomacy", None)]
+STREET_RECOUNT = {"different": 0, "maxRimN": 0, "maxRimKm": 0.0}
 # ----------------------------------------
 
 
@@ -110,7 +116,35 @@ def ring_types(counts):
     return [[t, c] for t, c in sorted(named, key=lambda tc: (-tc[1], tc[0]))[:N_RING_TYPES]]
 
 
-def aggregate(entry, doc, recs, rank, n_all, architect, built):
+def street_measures(slug, doc):
+    """Street figures from the Overture graph used by section 03."""
+    segments_path = STREETS_CORE / f"{slug}.json"
+    corners_path = NODE_TABLE / f"{slug}.csv"
+    graph_path = OVERTURE_GRAPHS / f"{slug}.graphml"
+    if not segments_path.exists() or not corners_path.exists() or not graph_path.exists():
+        return {"intersections": None, "block": None, "streetKm": None}
+    graph = build_street_measures.street_graph(graph_path)
+    lat0 = float(doc["m"]["latitude"])
+    lng0 = float(doc["m"]["longitude"])
+    lengths = [
+        float(data["length"])
+        for _, _, data in graph.edges(data=True)
+        if math.hypot(*build_street_measures.edge_midpoint_xy(data, lat0, lng0)) <= RADIUS_M
+        and build_street_measures.stored_midpoint_distance(data, lat0, lng0) <= RADIUS_M
+    ]
+    with corners_path.open(newline="", encoding="utf-8") as handle:
+        intersections = sum(
+            int(row["in_circle"]) == 1 and int(row["degree"]) >= 3
+            for row in csv.DictReader(handle)
+        )
+    return {
+        "intersections": intersections,
+        "block": round(statistics.mean(lengths), 1) if lengths else None,
+        "streetKm": round(sum(lengths) / 1000, 1) if lengths else None,
+    }
+
+
+def aggregate(entry, doc, recs, rank, n_all, architect, built, street):
     m = doc["m"]
     n = len(recs)
     cats, types = {}, {}
@@ -158,7 +192,6 @@ def aggregate(entry, doc, recs, rank, n_all, architect, built):
     net = [r[5] for r in recs if r[5] is not None]
     med_lin = round(statistics.median(lin)) if lin else None
     med_net = round(statistics.median(net)) if net else None
-    s = m.get("stats") or {}
     ev = m.get("events") or {}
     tags = [label + (f" {str(ev.get(yk, '')).replace('.0', '')}" if yk and ev.get(yk) else "")
             for key, label, yk in EVENT_TAGS if ev.get(key)]
@@ -197,9 +230,7 @@ def aggregate(entry, doc, recs, rank, n_all, architect, built):
             "rings": rings, "ringDensity": ring_density,
             "ringKinds": [flat(g) for g in ring_kinds], "ringTypes": [ring_types(t) for t in ring_type_counts],
             "built": built, "medLin": med_lin, "medNet": med_net,
-            "net": {"intersections": s.get("numberOfIntersections"),
-                    "block": round(s["avgEdgeLength"], 1) if s.get("avgEdgeLength") else None,
-                    "streetKm": round(s["edgeLengthTotal"] / 1000, 1) if s.get("edgeLengthTotal") else None},
+            "net": street,
             "lede": lede}
 
 
@@ -216,6 +247,74 @@ def validate(agg, doc):
             inside.append((d, p.category if pd.notna(p.category) and p.category else "uncategorized",
                            p.type if pd.notna(p.type) and p.type else "unknown"))
     slug = agg["slug"]
+    if agg["net"]["intersections"] is None:
+        assert all(value is None for value in agg["net"].values()), (slug, "street nulls")
+    else:
+        graph = build_street_measures.street_graph(OVERTURE_GRAPHS / f"{slug}.graphml")
+        lat0, lng0 = float(m["latitude"]), float(m["longitude"])
+        graph_lengths = [
+            float(data["length"])
+            for _, _, data in graph.edges(data=True)
+            if math.hypot(*build_street_measures.edge_midpoint_xy(data, lat0, lng0)) <= RADIUS_M
+            and build_street_measures.stored_midpoint_distance(data, lat0, lng0) <= RADIUS_M
+        ]
+        segments = json.load((STREETS_CORE / f"{slug}.json").open(encoding="utf-8"))["segs"]
+        lengths, lengths_without_rim, rim_lengths = [], [], []
+        for segment in segments:
+            points = segment[0]
+            if len(points) > 2:
+                lng, lat = points[len(points) // 2]
+            else:
+                lng = (points[0][0] + points[-1][0]) / 2
+                lat = (points[0][1] + points[-1][1]) / 2
+            distance = math.hypot(*build_street_measures.to_xy(lat, lng, lat0, lng0))
+            length = float(segment[7])
+            if 1499 <= distance <= 1501:
+                rim_lengths.append(length)
+            if distance <= RADIUS_M:
+                lengths.append(length)
+                if not 1499 <= distance <= 1501:
+                    lengths_without_rim.append(length)
+        recount = {
+            "intersections": sum(
+                graph.degree[node] >= 3
+                and math.hypot(*build_street_measures.to_xy(
+                    graph.nodes[node]["lat"], graph.nodes[node]["lng"], lat0, lng0
+                )) <= RADIUS_M
+                for node in graph.nodes
+            ),
+            "block": round(statistics.mean(lengths), 1) if lengths else None,
+            "streetKm": round(sum(lengths) / 1000, 1) if lengths else None,
+        }
+        assert recount["intersections"] == agg["net"]["intersections"], (
+            slug, "street intersections", recount, agg["net"]
+        )
+        graph_sum = sum(graph_lengths)
+        recount_sum = sum(lengths)
+        rim_km = sum(rim_lengths) / 1000
+        graph_mean = statistics.mean(graph_lengths)
+        recount_means = [statistics.mean(lengths)]
+        if lengths_without_rim:
+            recount_means.append(statistics.mean(lengths_without_rim))
+        mean_low, mean_high = min(recount_means), max(recount_means)
+        mean_distance = max(mean_low - graph_mean, graph_mean - mean_high, 0)
+        assert abs(graph_sum - recount_sum) / 1000 <= rim_km + 0.1, (
+            slug, "street streetKm", graph_sum / 1000, recount_sum / 1000, rim_km
+        )
+        assert round(mean_distance * 10) <= 1, (
+            slug, "street block", graph_mean, recount_means, len(rim_lengths), rim_km
+        )
+        assert round(graph_sum / 100) == round(agg["net"]["streetKm"] * 10), (
+            slug, "published streetKm", graph_sum / 1000, agg["net"]["streetKm"]
+        )
+        assert round(graph_mean * 10) == round(agg["net"]["block"] * 10), (
+            slug, "published block", graph_mean, agg["net"]["block"]
+        )
+        if (not math.isclose(graph_sum, recount_sum, rel_tol=0, abs_tol=1e-6)
+                or not math.isclose(graph_mean, recount_means[0], rel_tol=0, abs_tol=1e-6)):
+            STREET_RECOUNT["different"] += 1
+        STREET_RECOUNT["maxRimN"] = max(STREET_RECOUNT["maxRimN"], len(rim_lengths))
+        STREET_RECOUNT["maxRimKm"] = max(STREET_RECOUNT["maxRimKm"], rim_km)
     assert len(inside) == agg["n"], (slug, "count")
     assert sum(c for _, c in agg["cats"]) == agg["n"], (slug, "category total")
     assert sum(sum(g[1::2]) for g in agg["grid"]) == agg["n"], (slug, "grid total")
@@ -283,6 +382,7 @@ def main():
                                     "osmOnly": all(int(r[k]) == 0 for k in ("n_google", "n_microsoft", "n_other"))}
     docs = {x["slug"]: json.load(open(DATA / f"{x['slug']}.json")) for x in ix}
     recs = {s: records(s, d) for s, d in docs.items()}
+    streets = {s: street_measures(s, docs[s]) for s in docs}
     by_count = sorted(ix, key=lambda x: (-len(recs[x["slug"]]), x["slug"]))
     rank = {x["slug"]: i + 1 for i, x in enumerate(by_count)}
     assert rank[by_count[0]["slug"]] == 1 and len(set(rank.values())) == len(ix)
@@ -293,12 +393,12 @@ def main():
     aggs, n_lede = {}, 0
     for x in ix:
         s = x["slug"]
-        a = aggregate(x, docs[s], recs[s], rank[s], len(ix), arch.get(s, (None, None)), built.get(s))
+        a = aggregate(x, docs[s], recs[s], rank[s], len(ix), arch.get(s, (None, None)), built.get(s), streets[s])
         validate(a, docs[s])
         assert not any(k in a for k in ("p", "places", "points")), "raw records must not be published"
         a["study"] = {"places": a["n"], "cellMix": a["cellMix"], "medianDist": a["medNet"],
                       "built": a["built"]["share"] if a["built"] else None,
-                      "intersections": x.get("intersections"), "blockLength": x.get("blockLength")}
+                      "intersections": a["net"]["intersections"], "blockLength": a["net"]["block"]}
         aggs[s] = a
         n_lede += len(a["lede"])
     # Rank of each venue in each distance ring (1 = most places per km2 in that ring).
@@ -333,8 +433,10 @@ def main():
                   "cellMix": sorted(a["cellMix"] for a in aggs.values() if a["cellMix"] is not None),
                   "built": sorted(a["built"]["share"] for a in aggs.values() if a["built"]),
                   "medianDist": sorted(a["medNet"] for a in aggs.values() if a["medNet"] is not None),
-                  "intersections": sorted(x["intersections"] for x in ix if x.get("intersections")),
-                  "blockLength": sorted(x["blockLength"] for x in ix if x.get("blockLength"))},
+                  "intersections": sorted(a["net"]["intersections"] for a in aggs.values()
+                                          if a["net"]["intersections"] is not None),
+                  "blockLength": sorted(a["net"]["block"] for a in aggs.values()
+                                       if a["net"]["block"] is not None)},
         "atlas": atlas,
     }
     (OUT / "index.json").write_text(json.dumps(index, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -342,6 +444,8 @@ def main():
     print(f"wrote agg/: {len(aggs)} venue files + index.json, {size/1e6:.1f} MB in total "
           f"(raw data/ is {sum(f.stat().st_size for f in DATA.glob('*.json'))/1e6:.0f} MB)")
     print(f"{n_lede} lede sentences validated; {sum(1 for a in aggs.values() if a['architect'])} venues with a sourced architect")
+    print(f"street recount differences: {STREET_RECOUNT['different']} venues; largest rim: "
+          f"{STREET_RECOUNT['maxRimN']} segments, {STREET_RECOUNT['maxRimKm']:.3f} km")
     changes = [aggs[s]["n"] - old_n[s] for s in aggs if s in old_n and old_n[s] is not None]
     print(f"total places: {sum(a['n'] for a in aggs.values())}; venues changed: "
           f"{sum(change != 0 for change in changes)}; largest change: "
