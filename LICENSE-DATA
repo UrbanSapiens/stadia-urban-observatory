@@ -1,6 +1,6 @@
 Creative Commons Attribution 4.0 International (CC BY 4.0)
 
-Copyright (c) 2026 Gustavo Garcia do Amaral
+Copyright (c) 2026 The Stadia Urban Observatory authors
 
 Applies to the aggregated datasets in agg/, to data/index.json and to
 Stadia_database.xlsx. Individual place records are not part of this repository
@@ -18,7 +18,7 @@ indicate if changes were made.
 
 ATTRIBUTION
 
-  Amaral, Gustavo Garcia do. Stadia Urban Observatory: 4-D urban model analysis
+  The Stadia Urban Observatory authors. Stadia Urban Observatory: 4-D urban model analysis
   of major event stadiums.
   https://github.com/UrbanSapiens/stadia-urban-observatory
 
