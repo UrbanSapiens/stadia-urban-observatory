@@ -20,3 +20,7 @@ core/
 # Working notes and unpublished research ideas
 notes/
 tools/
+
+# Per-venue working records with place coordinates: local only, like core/
+data/*.json
+!data/index.json
