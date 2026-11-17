@@ -7,6 +7,8 @@ diplomacy programme.
 
 **Live site:** https://urbansapiens.github.io/stadia-urban-observatory/
 
+The site counts visits with GoatCounter (page, referrer, country), without cookies or personal data.
+
 A sibling of the [Goiás Violence Observatory](https://github.com/UrbanSapiens/goias-violence-observatory).
 
 ---

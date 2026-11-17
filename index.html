@@ -1102,5 +1102,12 @@ fetch(AGG+"index.json").then(r=>{if(!r.ok)throw new Error("index: HTTP "+r.statu
   initHome(ix.atlas);initSearch();initMap();route();
 }).catch(e=>{console.error(e);document.body.classList.add("failed");});
 </script>
+<script>
+// GoatCounter: visit counts without cookies. Routes live in the hash, so count them by hand.
+window.goatcounter={no_onload:true};
+function gcCount(){if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:location.pathname+location.search+location.hash});}
+addEventListener("hashchange",gcCount);
+</script>
+<script data-goatcounter="https://stadia-observatory.goatcounter.com/count" async src="//gc.zgo.at/count.js" onload="gcCount()"></script>
 </body>
 </html>
