@@ -1,0 +1,12 @@
+Copyright (c) 2026 The Stadia Urban Observatory authors. All rights reserved.
+
+This repository only serves the Stadia Urban Observatory website. The page code, its
+design, the aggregated data in agg/ and data/index.json, and the derived values in
+layers/ are not licensed for copying, redistribution, modification or reuse, in whole
+or in part, without written permission. Viewing the website is permitted.
+
+Third-party data keep their own licenses and credits, as stated on the website and in
+layers/SOURCES.md: street geometry from OpenStreetMap contributors (ODbL) via Overture
+Maps Foundation; building footprints per the source named in each record; residents
+and building height from GHSL, European Commission, Joint Research Centre (CC BY 4.0,
+adapted); country outlines from Natural Earth (public domain).

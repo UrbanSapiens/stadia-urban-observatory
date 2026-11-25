@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stadia Urban Observatory</title>
+<meta name="description" content="An open map of the places and streets within 1.5 km of large sports venues around the world.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23111'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='none' stroke='%23f2b200' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.1/maplibre-gl.css">
+<style>
+:root{
+  --bg:#111111; --fg:#ffffff; --mid:#8a8780; --dim:#555555; --rule:#2a2a2a; --line:#3a3a3a; --accent:#f2b200;
+  --sans:'Instrument Sans',-apple-system,'Helvetica Neue',Arial,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --gut:clamp(18px,3.4vw,48px);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit}button,input{font:inherit;color:inherit}
+.mono{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+body[data-view="home"] #venue,body[data-view="venue"] #home{display:none}
+svg{display:block;width:100%;height:auto}
+svg text{font-family:var(--mono);font-size:10px;fill:var(--mid)}
+.btn{background:none;border:1px solid var(--line);padding:8px 12px;cursor:pointer;text-decoration:none;font-size:13px;white-space:nowrap;display:inline-block}
+.btn:hover{border-color:var(--fg)}
+.btn.go{background:var(--accent);border-color:var(--accent);color:#111;font-weight:600}
+.btn.go:hover{background:#fff;border-color:#fff}
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s,transform .7s}
+.reveal.on{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}.sat{transition:none!important}}
+#fail{display:none;padding:120px var(--gut);max-width:60ch}
+body.failed #fail{display:block}body.failed #home,body.failed #venue{display:none}
+
+/* ================= HOME ================= */
+.bar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px var(--gut);background:linear-gradient(to bottom,rgba(17,17,17,.85),rgba(17,17,17,0))}
+.bar nav{display:flex;gap:22px;flex-wrap:wrap}
+.bar a{text-decoration:none}.bar a:hover{text-decoration:underline;text-underline-offset:4px}
+#hero{position:relative;height:100vh;min-height:560px;overflow:hidden;border-bottom:1px solid var(--rule)}
+#map{position:absolute;inset:0;background:#0b0b0b}
+#map .maplibregl-ctrl-bottom-left{z-index:4}
+.hero-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to top,rgba(17,17,17,.94) 0%,rgba(17,17,17,.55) 32%,rgba(17,17,17,0) 62%);transition:opacity .6s}
+.hero-copy{position:absolute;left:var(--gut);right:var(--gut);bottom:clamp(28px,6vh,64px);display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:clamp(20px,4vw,64px);align-items:end;transition:opacity .5s,transform .6s}
+.hero-copy h1{font-weight:600;font-size:clamp(44px,9.4vw,152px);line-height:.88;letter-spacing:-.045em;margin:0}
+.lede-home{font-size:clamp(15px,1.3vw,18px);color:#d8d6d0;margin:0 0 18px;max-width:36ch}
+.facts{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:20px;color:var(--mid)}
+.facts b{color:var(--fg);font-weight:500}
+.cta{display:inline-flex;align-items:center;gap:12px;background:var(--accent);color:#111;border:0;padding:14px 20px;font-weight:600;font-size:15px;cursor:pointer;text-decoration:none}
+.cta:hover{background:#fff}
+.scrollhint{margin-left:18px;color:var(--mid)}
+body.in-map{overflow:hidden}
+body.in-map #hero{position:fixed;inset:0;height:auto;z-index:50;border:0}
+body.in-map .hero-shade{opacity:0}
+body.in-map .hero-copy{opacity:0;transform:translateY(24px);pointer-events:none}
+body.in-map .bar nav{display:none}
+.mapbar{position:absolute;left:var(--gut);top:64px;z-index:5;display:none;gap:10px;align-items:flex-start;flex-wrap:wrap}
+body.in-map .mapbar{display:flex}
+.ghost{background:rgba(17,17,17,.86);border:1px solid var(--line);padding:9px 14px;cursor:pointer;font-size:13px;text-decoration:none}
+.ghost:hover{border-color:#fff}
+.search{position:relative}
+.search input{width:min(320px,70vw);background:rgba(17,17,17,.86);border:1px solid var(--line);padding:9px 14px;font-size:13px;outline:none}
+.search input:focus{border-color:#fff}
+.search input::placeholder{color:var(--mid)}
+#qres{position:absolute;left:0;right:0;top:100%;background:rgba(17,17,17,.96);border:1px solid var(--line);border-top:0;max-height:50vh;overflow:auto}
+#qres a{display:flex;justify-content:space-between;gap:10px;padding:8px 14px;text-decoration:none;font-size:13px;border-top:1px solid var(--rule)}
+#qres a:hover,#qres a:focus{background:#1c1c1c}
+#qres a span{color:var(--mid);font-size:12px}
+body:not(.in-map) .clist,body:not(.in-map) .card{display:none}
+.mcrumbs{display:flex;gap:6px;align-items:center}
+.mcrumbs .here{background:var(--accent);border-color:var(--accent);color:#111;font-weight:600;cursor:default}
+.clist header a{border:1px solid var(--line);width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:14px;text-decoration:none;margin-left:10px}
+.clist header a:hover{border-color:#fff;background:none;color:#fff}
+.clist header span{flex:1}
+.clist{position:absolute;right:var(--gut);top:64px;z-index:5;width:min(320px,calc(100% - 2*var(--gut)));max-height:calc(100% - 64px - 2*var(--gut));display:flex;flex-direction:column;background:rgba(17,17,17,.92);border:1px solid var(--line)}
+.clist header{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--rule)}
+.clist header b{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.clist header span{color:var(--mid)}
+.clist div{overflow:auto}
+.clist a{display:flex;justify-content:space-between;gap:12px;padding:8px 16px;text-decoration:none;font-size:13.5px;border-bottom:1px solid var(--rule)}
+.clist a:hover{background:#1c1c1c;color:var(--accent)}
+.clist a span{font-family:var(--mono);font-size:11.5px;color:var(--mid);white-space:nowrap}
+.card{position:absolute;right:var(--gut);bottom:var(--gut);z-index:5;width:min(340px,calc(100% - 2*var(--gut)));background:rgba(17,17,17,.92);border:1px solid var(--line);padding:18px}
+.card h3{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1.05;margin:6px 0 10px}
+.card dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0 0 14px;font-size:13px}
+.card dt{color:var(--mid)}.card dd{margin:0;text-align:right;font-family:var(--mono)}
+.card a{display:block;text-align:center;background:var(--accent);color:#111;text-decoration:none;font-weight:600;padding:11px}
+.card a:hover{background:#fff}
+
+section.blk{padding:clamp(48px,8vw,120px) var(--gut);border-bottom:1px solid var(--rule)}
+.head{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(18px,4vw,64px);margin-bottom:clamp(24px,4vw,48px);align-items:end}
+.head .mono{color:var(--mid);margin-bottom:14px}
+h2{font-weight:600;font-size:clamp(30px,4.6vw,68px);line-height:.95;letter-spacing:-.035em;margin:0}
+.note{color:#c9c6bd;margin:0;max-width:58ch;font-size:16px}
+.note + .note{margin-top:10px;color:var(--mid)}
+.one{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(24px,5vw,80px);align-items:center}
+.one canvas{display:block;width:100%;max-width:560px;aspect-ratio:1;border-radius:50%;border:1px solid var(--line);justify-self:center}
+.keys{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.keys li{display:grid;grid-template-columns:54px 1fr;gap:14px;padding:18px 0;border-bottom:1px solid var(--rule);align-items:start}
+.keys b{display:block;font-size:clamp(20px,2vw,28px);font-weight:600;letter-spacing:-.02em;line-height:1.1}
+.keys span.t{color:var(--mid);font-size:15px}
+.keys i{font-family:var(--mono);font-style:normal;font-size:11px;color:var(--mid);padding-top:6px}
+.atlas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:26px 18px;align-items:start}
+.plate{display:flex;flex-direction:column;text-decoration:none}
+.plate canvas{display:block;width:100%;aspect-ratio:1;border-radius:50%;border:1px solid var(--rule);transition:border-color .15s}
+.plate:hover canvas,.plate:focus-visible canvas{border-color:#fff}
+.plate-name{font-size:15px;font-weight:500;line-height:1.2;margin-top:10px}
+.plate-meta{font-family:var(--mono);font-size:10.5px;color:var(--mid);margin-top:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px 8px;margin-bottom:18px}
+.chips button{background:none;border:1px solid var(--line);padding:6px 12px;font-size:13px;cursor:pointer}
+.chips button b{font-family:var(--mono);font-weight:400;font-size:11px;color:var(--mid);margin-left:8px}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#111}
+.chips button[aria-pressed="true"] b{color:#111}
+.scroll{overflow-x:auto}
+#years{min-width:900px}
+#years circle,#nodate circle{cursor:pointer;transition:fill .15s,opacity .15s}
+.undated{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(18px,4vw,64px);margin-top:30px;padding-top:18px;border-top:1px dashed var(--line)}
+.undated p{margin:0;color:var(--mid);font-size:14px}.undated strong{color:var(--fg);font-weight:500}
+.maplibregl-popup-content{background:#fff;color:#111;font:12px/1.3 var(--sans,inherit);padding:6px 9px;border-radius:0}
+.tip{position:fixed;pointer-events:none;z-index:80;background:#fff;color:#111;font-size:12px;padding:6px 9px;white-space:nowrap}
+.tip span{font-family:var(--mono);color:#555;margin-left:8px}
+.four{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--rule)}
+.four div{padding:22px 22px 6px 0;border-right:1px solid var(--rule);margin-right:22px}
+.four div:last-child{border-right:0;margin-right:0}
+.four .mono{color:var(--mid)}
+.four h3{font-size:clamp(22px,2.4vw,34px);font-weight:600;letter-spacing:-.03em;margin:10px 0 8px}
+.four p{margin:0;color:var(--mid);font-size:15px}
+.fine{padding:0 var(--gut) 34px;display:grid;grid-template-columns:120px minmax(0,1fr);gap:18px;color:var(--dim);font-size:12.5px;line-height:1.55}
+.fine .mono{color:var(--mid)}
+.fine p{margin:0;max-width:110ch}
+.end{padding:clamp(48px,8vw,120px) var(--gut);display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap}
+.end h2{max-width:14ch}
+footer{padding:22px var(--gut) 40px;border-top:1px solid var(--rule);display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;color:var(--mid);font-size:13px}
+footer a{color:var(--mid)}footer a:hover{color:var(--fg)}
+
+/* ================= VENUE ================= */
+.vbar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px var(--gut);background:linear-gradient(to bottom,rgba(17,17,17,.8),rgba(17,17,17,0));border-bottom:1px solid transparent;transition:background .3s,border-color .3s}
+body.scrolled .vbar{background:rgba(17,17,17,.95);border-bottom-color:var(--rule)}
+.vbar .btn:not(.go){background:rgba(17,17,17,.6)}
+.crumbs{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.crumbs a{text-decoration:none;color:#b9b7b0}.crumbs a:hover{color:var(--fg)}
+.crumbs .sep{color:var(--dim)}
+.navbtns{display:flex;gap:8px}
+.top{position:relative;height:100vh;min-height:600px;overflow:hidden;border-bottom:1px solid var(--rule)}
+.sat{position:absolute;left:50%;top:50%;transform-origin:0 0;will-change:transform}
+.sat img{position:absolute;width:256px;height:256px;display:block}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes fadeup{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.top.arrive .shade{animation:fadein .9s ease both}
+.top.arrive .topcopy{animation:fadeup .9s .15s ease both}
+.info{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border:1px solid var(--line);border-radius:50%;font-family:var(--mono);font-size:10px;color:var(--mid);cursor:help;vertical-align:middle;margin-left:10px;position:relative;letter-spacing:0;text-transform:none}
+.info:hover,.info:focus{border-color:#fff;color:#fff;outline:none}
+.info::after{content:attr(data-info);position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);width:min(320px,70vw);background:#fff;color:#111;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.4;letter-spacing:0;padding:10px 12px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:30;text-align:left}
+.info:hover::after,.info:focus::after{opacity:1}
+.shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(17,17,17,.96) 0%,rgba(17,17,17,.72) 34%,rgba(17,17,17,.18) 70%,rgba(17,17,17,.38) 100%)}
+.topcopy{position:absolute;left:var(--gut);right:var(--gut);bottom:clamp(26px,5vh,56px);display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(20px,4vw,64px);align-items:end}
+.credit{position:absolute;right:var(--gut);top:64px;color:rgba(255,255,255,.55);font-size:10px}
+.top h1{font-weight:600;font-size:clamp(40px,7.4vw,118px);line-height:.9;letter-spacing:-.045em;margin:12px 0 0}
+.meta{display:flex;gap:8px 18px;flex-wrap:wrap;color:#b9b7b0}
+.meta b{color:var(--fg);font-weight:500}
+.lede{list-style:none;margin:0;padding:0;border-top:1px solid rgba(255,255,255,.28)}
+.lede li{padding:12px 0;border-bottom:1px solid rgba(255,255,255,.28);font-size:clamp(16px,1.45vw,21px);line-height:1.3;letter-spacing:-.01em}
+.lede li.caveat{color:var(--accent);font-size:15px}
+.down{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);color:rgba(255,255,255,.6)}
+section.vblk{padding:clamp(28px,4vw,56px) var(--gut);border-bottom:1px solid var(--rule);scroll-margin-top:56px}
+.h{display:flex;justify-content:space-between;align-items:baseline;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+.h .mono{color:var(--mid)}
+.h h2{font-size:clamp(22px,2.6vw,38px);line-height:1;margin:6px 0 0}
+.sub{color:var(--mid);font-size:14px;max-width:60ch;margin:0}
+.wrow{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:stretch;margin-top:18px}.wcol{min-width:0}.wmapbox{box-sizing:border-box;height:min(72vh,760px);min-height:520px;border:1px solid var(--rule);position:relative}.wmapbox #wmap,.wmapbox #bmap{position:absolute;inset:0}.wside{box-sizing:border-box;height:min(72vh,760px);min-height:520px;overflow-y:auto}.wside h2{font-family:var(--sans);font-size:22px;font-weight:600;line-height:1.15;color:#f2f2f2;margin:0 0 12px}.wside p{font-family:var(--sans);font-size:15px;font-weight:400;line-height:1.5;color:#d6d4cd;margin:0 0 10px}.wlabel,.wstats th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#8a8a8a;margin:0 0 8px}.wstats th{font-size:10px}.wreach{border-top:1px solid var(--rule);padding-top:14px;margin-top:14px}.wstreet{font-weight:600}.wcoords{font-family:var(--mono);font-size:13px;color:#f2f2f2;user-select:all}.wcoord-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}.wbtn{font-family:var(--sans);font-size:12px;padding:4px 10px;border:1px solid #333;background:none;color:#f2f2f2;border-radius:0;cursor:pointer}.wreach-lines,.wstats td{font-family:var(--sans);font-size:13px;line-height:1.4;color:#f2f2f2;font-variant-numeric:tabular-nums}.wreach-lines{margin:0 0 10px;padding-left:18px}.wstats{margin-top:22px;border-top:1px solid var(--rule);padding-top:14px}.wstats-scroll{overflow-x:auto}.wstats table{width:100%;border-collapse:collapse;table-layout:fixed}.wstats th,.wstats td{text-align:left;white-space:nowrap;padding:8px 10px;border-bottom:1px solid #1f1f1f}.wstats th:nth-child(2),.wstats th:nth-child(3),.wstats td:nth-child(2),.wstats td:nth-child(3){text-align:right}.wnote,.wleg{font-family:var(--sans);font-size:12px;color:#8a8a8a}.wtable-note{margin-top:10px}.wleg{display:flex;align-items:center;flex-wrap:wrap;gap:6px 18px;margin-top:10px}.wleg-group{display:flex;align-items:center;gap:8px}.wramp{width:160px;height:8px;background:linear-gradient(90deg,rgb(70,18,72),rgb(138,20,84),rgb(205,34,62),rgb(238,104,28),rgb(250,160,24),rgb(255,214,64))}.wswatches{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.wswatch{display:inline-block;width:12px;height:12px;margin-right:5px;vertical-align:-1px}.wdash{display:inline-block;width:24px;border-top:1.3px dashed #f2f2f2;margin-right:5px;vertical-align:3px}.wcircle-note{margin-left:auto}.wcred{flex-basis:100%;margin:0;text-align:right;font-size:11px;color:var(--mid)}.wcred a{color:inherit}.wcircle-label{font-family:var(--mono);font-size:11px;color:#f2f2f2;white-space:nowrap}.wcredit{color:var(--dim);font-size:12px;margin:14px 0 0}.bramp-box{display:flex;flex-direction:column;gap:3px;width:220px;flex:none}.bramp{display:block;width:220px;height:10px;background:linear-gradient(90deg,rgb(70,18,72),rgb(138,20,84) 25%,rgb(205,34,62) 50%,rgb(238,104,28) 72%,rgb(250,160,24) 88%,rgb(255,214,64))}.bramp-labels{width:100%;display:flex;justify-content:space-between;font:10px/1.3 var(--mono);color:var(--muted)}.metric{display:flex;justify-content:space-between;align-items:baseline;gap:16px;border-top:1px solid var(--rule);padding:9px 0}.metric-value{text-align:right;font:12px/1.4 var(--mono)}.bslider{display:flex;align-items:center;gap:8px}.bslider input{accent-color:var(--accent)}
+@media(max-width:900px){.wrow{grid-template-columns:1fr}.wside{height:auto;min-height:0}}
+@media(max-width:700px){.wstats table{min-width:620px}}
+/* 01: circle, kinds and types on one screen. The circle takes the height that is left. */
+#what{padding-top:74px;min-height:100vh;display:flex;flex-direction:column}
+.what{--c:min(calc(100vh - 232px),54vw);display:grid;grid-template-columns:var(--c) minmax(0,1fr);gap:clamp(24px,3.4vw,60px);align-items:start;flex:1}
+#circleCanvas{display:block;width:var(--c);height:var(--c);border-radius:50%;border:1px solid var(--line)}
+.circlecap{display:flex;justify-content:space-between;color:var(--mid);margin-top:8px;width:var(--c)}
+.cats{list-style:none;margin:0;padding:0}
+.cats button,.types button{width:100%;background:none;border:0;border-bottom:1px solid var(--rule);cursor:pointer;text-align:left}
+.cats button{display:grid;grid-template-columns:112px 1fr 104px;gap:12px;align-items:center;padding:clamp(3px,.62vh,8px) 0}
+.cats button:hover .nm,.types button:hover .tn{color:var(--accent)}
+.cats .nm{font-size:14.5px;text-transform:capitalize}
+.cats .track{height:9px;background:#1c1c1c;position:relative}
+.cats .fill{position:absolute;left:0;top:0;bottom:0;background:#fff;transition:background .15s}
+.cats .val{font-family:var(--mono);font-size:11.5px;text-align:right;color:var(--mid);white-space:nowrap}
+.cats button[aria-pressed="true"] .nm{color:var(--accent)}
+.cats button[aria-pressed="true"] .fill{background:var(--accent)}
+.cats button.off,.types button.off{opacity:.35}
+.typeshead{color:var(--mid);margin:clamp(10px,1.8vh,22px) 0 6px;display:flex;justify-content:space-between;gap:10px}
+.typeshead b{color:var(--accent);font-weight:500}
+.types{display:grid;grid-template-columns:1fr 1fr;gap:0 26px}
+.types button{display:flex;justify-content:space-between;gap:12px;padding:clamp(3px,.55vh,6px) 0;font-size:13.5px}
+.types button span:last-child{font-family:var(--mono);font-size:11.5px;color:var(--mid)}
+.types button[aria-pressed="true"] .tn{color:var(--accent)}
+.hint{color:var(--dim);font-size:12px;margin-top:8px}
+.two{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);gap:clamp(24px,4vw,72px);align-items:end}
+.big{font-weight:600;font-size:clamp(34px,4.6vw,72px);letter-spacing:-.04em;line-height:1}
+.big small{font-size:.38em;letter-spacing:0;color:var(--mid);font-weight:500;margin-left:6px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:18px;border-top:1px solid var(--rule);padding-top:16px}
+.pair .mono{color:var(--mid);margin-bottom:8px}
+.rside{display:flex;flex-direction:column;justify-content:space-between;gap:28px;align-self:stretch}
+.ringmix .mono{color:var(--mid)}
+.rm-head{font-weight:600;font-size:clamp(20px,1.9vw,28px);letter-spacing:-.025em;line-height:1.1;margin:8px 0 4px}
+.rm-sub{color:var(--mid);font-size:13px;margin:0 0 16px}
+.rm-rows{display:grid;grid-template-columns:max-content minmax(0,1fr) max-content;gap:8px 14px;align-items:center;font-size:13.5px;min-height:150px;align-content:start}
+.rm-row{display:contents}
+.rm-sq{display:grid;grid-template-columns:repeat(25,1fr);gap:2px}
+.rm-sq i{aspect-ratio:1;background:#fff}
+.rm-val{font-family:var(--mono);font-size:11.5px;color:var(--mid);text-align:right;white-space:nowrap}
+.rm-val b{color:var(--fg);font-weight:400}
+.rm-types{margin:14px 0 0;font-size:13.5px;color:var(--mid)}.rm-types b{color:var(--fg);font-weight:500}
+.rm-note{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin:10px 0 0}
+#rings rect.bar{cursor:pointer}#rings rect.bar:hover{opacity:.82}#rings rect.bar:focus-visible{outline:2px solid #fff;outline-offset:2px}
+/* 03: extruded grid */
+.iso{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;height:min(76vh,760px)}
+.isomap{position:relative;border:1px solid var(--rule);min-height:0}
+#dmap{position:absolute;inset:0}
+.ctl{position:absolute;left:12px;top:12px;z-index:3;background:rgba(17,17,17,.9);border:1px solid var(--line);padding:10px 12px;display:grid;gap:7px}
+.seg{display:flex;align-items:center;gap:8px}
+.seg .mono{width:52px;color:var(--mid);font-size:9.5px}
+.seg div{display:flex;border:1px solid var(--line)}
+.seg button{background:none;border:0;padding:4px 9px;font-size:12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#111;font-weight:600}
+.leg{position:absolute;left:12px;bottom:12px;z-index:3;max-width:330px;background:rgba(17,17,17,.9);border:1px solid var(--line);padding:9px 12px;font-size:11.5px;color:#c9c6bd;pointer-events:none}
+.ramp{height:8px;width:120px;background:linear-gradient(to right,rgb(70,18,72),rgb(138,20,84),rgb(205,34,62),rgb(238,104,28),rgb(250,160,24),rgb(255,214,64))}
+.leg i{display:inline-block;width:9px;height:9px;background:#4a4a4a;margin-right:6px}
+.zones{overflow:auto;border-top:1px solid var(--rule)}
+.zones p{color:var(--mid);font-size:13.5px;margin:12px 0}
+.zone{border-bottom:1px solid var(--rule);padding:12px 0}
+.zone .zh{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.zone .sw{width:11px;height:11px;border-radius:50%;border:2px dashed #fff;flex-shrink:0}
+.zone .zh span.r{font-family:var(--mono);font-size:11px;color:var(--mid);flex:1}
+.zone .zh button{width:22px;height:22px;background:none;border:1px solid var(--line);cursor:pointer;padding:0;line-height:1}
+.zone .zh button:hover{border-color:#fff}
+.zone dl{display:grid;grid-template-columns:1fr auto;gap:3px 12px;margin:0;font-size:13.5px}
+.zone dt{color:var(--mid)}.zone dd{margin:0;font-family:var(--mono);font-size:12.5px}
+.strips{display:grid;gap:22px}
+.strip{display:grid;grid-template-columns:200px 1fr 150px;gap:18px;align-items:center}
+.strip .lab{font-size:15px}.strip .lab small{display:block;color:var(--mid);font-size:12px}
+.strip .val{font-family:var(--mono);font-size:13px;text-align:right}
+.strip .val small{display:block;color:var(--mid);font-size:11px}
+.nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--rule);margin-top:34px}
+.nums div{padding:18px 18px 0 0}
+.nums .mono{color:var(--mid);margin-bottom:8px}
+.foot{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center;padding:28px var(--gut) 48px}
+.foot .note{color:var(--dim);font-size:12px;max-width:70ch}
+@media (max-width:900px){
+  .hero-copy,.head,.one,.undated,.topcopy,.two{grid-template-columns:1fr}
+  .four{grid-template-columns:1fr 1fr}.four div{border-right:0;margin-right:0}
+  .fine{grid-template-columns:1fr;gap:6px}
+  .bar nav a:not(.keep){display:none}.scrollhint{display:none}
+  #what{min-height:0}
+  .what{--c:min(92vw,560px);grid-template-columns:1fr}
+  .iso{grid-template-columns:1fr;height:auto}.isomap{height:62vh}
+  .strip{grid-template-columns:1fr;gap:6px}.strip .val{text-align:left}
+  .nums{grid-template-columns:1fr}
+  .crumbs #crumbCountry,.crumbs .sep{display:none}
+}
+</style>
+</head>
+<body data-view="home">
+
+<div id="fail"><h2>The data could not be loaded.</h2><p class="note" style="margin-top:16px">Reload the page. If it keeps failing, the site may be mid-update; try again in a few minutes.</p></div>
+
+<!-- ============================ HOME ============================ -->
+<div id="home">
+<div class="bar mono">
+  <span>Stadia Urban Observatory</span>
+  <nav>
+    <a href="#circle">The circle</a>
+    <a href="#atlas">Atlas</a>
+    <a href="#timeline">Timeline</a>
+    <a href="#method">Method</a>
+    <a class="keep" href="#/map">Map</a>
+  </nav>
+</div>
+
+<section id="hero">
+  <div id="map"></div>
+  <div class="hero-shade"></div>
+  <div class="mapbar">
+    <a class="ghost" href="#/">&larr; Overview</a>
+    <div class="mcrumbs" id="mcrumbs"></div>
+    <div class="search"><input id="q" type="search" autocomplete="off" aria-label="Search venues"><div id="qres" hidden></div></div>
+  </div>
+  <div class="clist" id="clist" hidden></div>
+  <div class="card" id="card" hidden></div>
+  <div class="hero-copy">
+    <h1>What surrounds a stadium?</h1>
+    <div>
+      <p class="lede-home">The places and streets within 1.5 km of large sports venues, mapped the same way everywhere so they can be compared.</p>
+      <div class="facts mono"><span><b data-n="venues"></b> venues</span><span><b data-n="countries"></b> countries</span><span><b>1.5 km</b> radius</span></div>
+      <a class="cta" href="#/map">Enter the map <span aria-hidden="true">&rarr;</span></a>
+      <span class="scrollhint mono">or scroll &darr;</span>
+    </div>
+  </div>
+</section>
+
+<section class="blk" id="circle">
+  <div class="head reveal">
+    <div><div class="mono">01 / The unit</div><h2>One circle per stadium</h2></div>
+    <p class="note">Every venue in the observatory is read through the same figure. Learn it once and every venue page reads the same way.</p>
+  </div>
+  <div class="one reveal">
+    <canvas id="onecanvas"></canvas>
+    <ul class="keys">
+      <li><i>A</i><div><b>The circle is 1.5 km</b><span class="t">A fixed radius around the stadium, the same at every venue.</span></div></li>
+      <li><i>B</i><div><b>The ring is the stadium</b><span class="t">Always at the center, north always up.</span></div></li>
+      <li><i>C</i><div><b>Each dot is a cell of mapped places</b><span class="t">Shops, schools, clinics, restaurants, counted in <span data-n="cell"></span> m cells. A larger dot holds more places. This is <span data-n="onename"></span>, with <span data-n="onecount"></span> places.</span></div></li>
+    </ul>
+  </div>
+</section>
+
+<section class="blk" id="atlas">
+  <div class="head reveal">
+    <div><div class="mono">02 / Atlas</div><h2><span data-n="plates"></span> surroundings, sparsest to densest</h2></div>
+    <p class="note">Venues taken at even steps along the full range of the study, from the fewest mapped places to the most. Select one to open it on the map.</p>
+  </div>
+  <div class="atlas reveal" id="atlasgrid"></div>
+</section>
+
+<section class="blk" id="timeline">
+  <div class="head reveal">
+    <div><div class="mono">03 / Timeline</div><h2>When the current buildings opened</h2></div>
+    <div>
+      <p class="note">One dot is one venue on the year its current building opened, or reopened after a rebuild. <span data-n="dated"></span> of <span data-n="venues"></span> have a reliable opening year on record. Choose a program to light it up.</p>
+      <p class="note">The peaks follow the events chosen for the study. They do not describe when stadiums were built in general.</p>
+    </div>
+  </div>
+  <div class="chips reveal" id="chips"></div>
+  <div class="scroll reveal"><svg id="years" role="img" aria-label="Venues by opening year"></svg></div>
+</section>
+
+<section class="blk" id="method">
+  <div class="head reveal">
+    <div><div class="mono">04 / Method</div><h2>Four readings of the same circle</h2></div>
+    <p class="note">Each venue is described with four readings, taken from the places mapped around it and from the street network that connects them.</p>
+  </div>
+  <div class="four reveal">
+    <div><span class="mono">D1</span><h3>Density</h3><p>How many places are mapped inside the circle, and where they concentrate.</p></div>
+    <div><span class="mono">D2</span><h3>Distance</h3><p>How far each place is from the stadium along the streets, not in a straight line.</p></div>
+    <div><span class="mono">D3</span><h3>Diversity</h3><p>How mixed the kinds of places are: food, retail, health, education and others.</p></div>
+    <div><span class="mono">D4</span><h3>Destinations</h3><p>Which kinds of places are present, and which are absent.</p></div>
+  </div>
+</section>
+
+<div class="end">
+  <h2>Now open the map.</h2>
+  <a class="cta" href="#/map">Enter the map <span aria-hidden="true">&rarr;</span></a>
+</div>
+<div class="fine">
+  <div class="mono">Limits</div>
+  <p>The observatory shows what is mapped, which is not always what exists. A circle with few dots can mean a quiet area or thin platform coverage, so a low count is not evidence of an empty city. The readings describe what stands near a stadium; they do not show that the stadium produced it. Venues were not all collected in the same year, and each venue page states its date where one is on record. The site publishes counts per cell, per kind and per distance ring, not individual place records.</p>
+</div>
+<footer>
+  <div>Stadia Urban Observatory</div>
+</footer>
+</div>
+
+<!-- ============================ VENUE ============================ -->
+<div id="venue">
+<div class="vbar">
+  <div class="crumbs mono">
+    <a id="tomap1" href="#/map">Map</a><span class="sep">/</span>
+    <a id="crumbCountry"></a><span class="sep">/</span>
+    <span id="crumbName" style="color:#fff"></span>
+  </div>
+  <div class="navbtns">
+    <a class="btn" id="prev" title="Previous venue">&larr;</a>
+    <a class="btn" id="next" title="Next venue">&rarr;</a>
+    <a class="btn go" id="tomap2" href="#/map">Back to map</a>
+  </div>
+</div>
+
+<header class="top" id="top">
+  <div class="sat" id="sat"></div>
+  <div class="shade"></div>
+  <div class="credit mono">Imagery © Esri and its data providers</div>
+  <div class="topcopy">
+    <div>
+      <div class="meta mono" id="meta"></div>
+      <h1 id="name"></h1>
+    </div>
+    <ul class="lede" id="lede"></ul>
+  </div>
+  <div class="down mono">scroll &darr;</div>
+</header>
+
+<section class="vblk" id="what">
+  <div class="h">
+    <div><div class="mono">01 / What is there</div><h2>Places by kind<span class="info" tabindex="0" data-info="Every mapped place around the stadium belongs to one kind (food, retail, health and so on) and one more specific type. The circle shows where they are, counted in small square cells. Select a kind to see only that kind and its most common types.">i</span></h2></div>
+    <p class="sub">The 1.5 km around the stadium, in <span data-n="cell"></span> m cells. A larger dot means more places in that cell.</p>
+  </div>
+  <div class="what">
+    <div>
+      <canvas id="circleCanvas"></canvas>
+      <div class="circlecap mono"><span id="showing"></span><span>north up · 1.5 km</span></div>
+    </div>
+    <div>
+      <ul class="cats" id="cats"></ul>
+      <div class="typeshead mono"><span id="typeshead"></span><span id="typescount"></span></div>
+      <div class="types" id="types"></div>
+      <div class="hint">Select again to clear.</div>
+    </div>
+  </div>
+</section>
+
+<section class="vblk">
+  <div class="h">
+    <div><div class="mono">02 / How far</div><h2>Places by distance from the stadium<span class="info" tabindex="0" data-info="The circle is cut into rings, like a target. For each ring we count the places inside it and divide by the ring's area, because outer rings are larger and would always hold more. A tall bar close to zero means the stadium has activity at its doorstep. Hover a bar to see how this venue ranks against the others in that ring.">i</span></h2></div>
+    <p class="sub">Places per km² in each <span data-n="ring"></span> m ring, in a straight line from the stadium. Click a bar to see what is in that ring.</p>
+  </div>
+  <div class="two">
+    <svg id="rings" role="img" aria-label="Places per square kilometer by distance ring"></svg>
+    <div class="rside">
+      <div class="ringmix" id="ringmix" aria-live="polite"></div>
+      <div class="pair">
+        <div><div class="mono">Half within, straight line</div><div class="big" id="medLin"></div></div>
+        <div><div class="mono">Half within, by street</div><div class="big" id="medNet"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="vblk" id="walk" hidden>
+  <div class="h">
+    <div><div class="mono">03 / On foot</div><h2>Streets and walking time<span class="info" tabindex="0" data-info="Walking time is measured along the streets, not in a straight line, at 4.8 km/h. The colored bands show how far 5, 10, 15, 20 and 25 minutes take you from the stadium. The other view colors each street by how many of the shortest routes between street corners run along it. Both describe the street layout and the mapped places, not counted people.">i</span></h2></div>
+    <p class="sub">Streets within 1,500 m of the stadium. Switch between walking time and through streets. Click a street for what is within a 5-minute walk of that point.</p>
+  </div>
+  <div class="wrow">
+    <div class="wcol">
+      <div class="wmapbox"><div id="wmap"></div><div class="ctl" id="wctl"></div></div>
+      <div class="wleg" id="wleg"></div>
+      <div id="wstats"></div>
+    </div>
+    <div class="wside" id="wside"></div>
+  </div>
+</section>
+
+<section class="vblk" id="built" hidden>
+  <div class="h">
+    <div><div class="mono" id="labb"></div><h2>Buildings, residents and height<span class="info" tabindex="0" data-info="Building footprints come from open map data and are incomplete in some places. Residents are a model estimate for 2020 and building height is a satellite estimate for 2018, both for squares of 100 m. Neither is a count on the ground.">i</span></h2></div>
+    <p class="sub">The ground within 1,500 m of the stadium. Switch between building footprints, estimated residents and estimated building height.</p>
+  </div>
+  <div class="wrow">
+    <div class="wcol">
+      <div class="wmapbox"><div id="bmap"></div><div class="ctl" id="bctl"></div></div>
+      <div class="wleg" id="bleg"></div>
+    </div>
+    <div class="wside" id="bside"></div>
+  </div>
+</section>
+
+<section class="vblk">
+  <div class="h">
+    <div><div class="mono" id="lab4">04 / Quantity and mix</div><h2>How much, and how mixed<span class="info" tabindex="0" data-info="Two different questions on one map. Height answers how much: the number of places in the cell. Color answers how mixed: whether those places are of one kind or of many. A tall dark cell is a lot of the same thing. A bright cell is a real mix, even when it is low. The mix is a Simpson index: the chance that two places picked at random in the cell are of different kinds.">i</span></h2></div>
+    <p class="sub">Height is the number of places. Color is the mix of kinds. Click the map to drop a zone on a cluster. Right-drag to rotate.</p>
+  </div>
+  <div class="iso">
+    <div class="isomap">
+      <div id="dmap"></div>
+      <div class="ctl" id="ctl"></div>
+      <div class="leg" id="leg"></div>
+    </div>
+    <div class="zones" id="zones"></div>
+  </div>
+</section>
+
+<section class="vblk">
+  <div class="h">
+    <div><div class="mono" id="lab5">05 / In the study</div><h2>This venue among the <span data-n="venues"></span><span class="info" tabindex="0" data-info="Each thin line is one of the venues in the study, placed by its value. The yellow line is this venue. It shows at a glance whether this stadium sits among the many or stands apart.">i</span></h2></div>
+    <p class="sub">Each line is one venue. This one is marked in yellow.</p>
+  </div>
+  <div class="strips" id="strips"></div>
+  <div class="nums" id="nums"></div>
+</section>
+
+<div class="foot">
+  <p class="note">Built from counts per cell, kind and distance ring. Street measures come from the Overture street network within the same circle, the same one as the walking section, footpaths included. Street data © OpenStreetMap contributors (ODbL), with data from TomTom, via Overture Maps Foundation. Building footprints via Overture Maps Foundation: © OpenStreetMap contributors and Microsoft (ODbL); Google Open Buildings, Esri Community Maps contributors and Shi et al. 2023 (CC BY 4.0).</p>
+  <a class="btn go" id="tomap3" href="#/map">Back to map</a>
+</div>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.1/maplibre-gl.js"></script>
+<script>
+// ---------------- config ----------------
+const AGG="agg/";                                        // aggregate files written by scripts/build_site_data.py
+const BASEMAP_STYLE_URL="https://tiles.openfreemap.org/styles/dark";   // keyless
+const SAT_TILES="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const SAT_CREDIT="Imagery © Esri and its data providers";
+const STREET_CREDIT="Streets © OpenStreetMap contributors (ODbL), with data from TomTom, via Overture Maps Foundation";   // required by the street data license (ODbL)
+const WORLD={center:[15,22],zoom:1.55};
+const ACCENT="#f2b200";
+const ZONE_COLORS=["#ffffff","#7fd6ff","#b6ff8a"],MAX_ZONES=3,ZONE_R=250;
+const SHOW_PAPER_MEASURES=false;   // measures of the unpublished paper stay off the site until it is accepted
+const PROG=[["wc","FIFA World Cup"],["og","Olympic Games"],["eu","UEFA Euro"],["mls","MLS"],["mlb","MLB"],["csd","China stadium diplomacy"],["none","No program recorded"]];
+const M_PER_DEG=111320;
+// ----------------------------------------
+const $=id=>document.getElementById(id);
+const NS="http://www.w3.org/2000/svg";
+const el=(n,a,t)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(t!==undefined)e.textContent=t;return e;};
+const h=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;};
+const fmt=n=>n==null?"not on record":n.toLocaleString("en-US");
+const ordinal=n=>n+(n%100>=11&&n%100<=13?"th":({1:"st",2:"nd",3:"rd"}[n%10]||"th"));
+const order=Object.fromEntries(PROG.map(([k],i)=>[k,i]));
+let V=[],CFG=null,STUDY=null,slugIndex={};      // V: [slug,name,country,lat,lng,year,program,places,rank]
+const cache={};
+function loadVenue(slug){
+  if(!cache[slug])cache[slug]=fetch(AGG+slug+".json").then(r=>{if(!r.ok)throw new Error(slug+": HTTP "+r.status);return r.json();});
+  return cache[slug];
+}
+function basemapStyle(){
+  return fetch(BASEMAP_STYLE_URL).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
+    .catch(()=>({version:8,glyphs:GLYPHS,sources:{},layers:[{id:"bg",type:"background",paint:{"background-color":"#0b0b0b"}}]}));
+}
+
+// One figure for the whole site: occupied cells as dots sized by count.
+// cells: Map(cell -> count). lit: optional Map of cells to draw in the accent color.
+function drawCells(cv,S,cells,lit,ringR){
+  cv.width=S;cv.height=S;const g=cv.getContext("2d"),N=CFG.gridN,c=S/N;
+  g.fillStyle="#0b0b0b";g.fillRect(0,0,S,S);
+  let maxC=1;cells.forEach(v=>{if(v>maxC)maxC=v;});
+  const dot=(k,n,color)=>{g.fillStyle=color;g.beginPath();g.arc((k%N+0.5)*c,(Math.floor(k/N)+0.5)*c,Math.max(S/850,Math.sqrt(n/maxC)*c*0.62),0,6.2832);g.fill();};
+  cells.forEach((n,k)=>dot(k,n,lit?"rgba(255,255,255,0.16)":"rgba(255,255,255,0.82)"));
+  if(lit)lit.forEach((n,k)=>dot(k,n,ACCENT));
+  g.strokeStyle=lit?"#fff":ACCENT;g.lineWidth=ringR*0.34;g.beginPath();g.arc(S/2,S/2,ringR,0,6.2832);g.stroke();
+}
+const toMap=flat=>{const m=new Map();for(let i=0;i<flat.length;i+=2)m.set(flat[i],(m.get(flat[i])||0)+flat[i+1]);return m;};
+function totalCells(v){const m=new Map();v.grid.forEach(a=>{for(let i=0;i<a.length;i+=2)m.set(a[i],(m.get(a[i])||0)+a[i+1]);});return m;}
+
+// ================= HOME =================
+let map=null,mapReady=false,pendingVenue=null,pendingCountry=null;
+const MAP_FONT=["Noto Sans Regular"],GLYPHS="https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
+const DOTS_MAX_ZOOM=4.2;      // below this every venue is its own point; above it nearby venues gather by city
+// Natural Earth names -> the names used in the data (same table as scripts/audit_data.py)
+const GEO_ALIASES={"United States of America":"United States","Korea":"South Korea","S. Korea":"South Korea","Czech Rep.":"Czech Republic","Bosnia and Herz.":"Bosnia and Herzegovina","Dominican Rep.":"Dominican Republic","Central African Rep.":"Central African Republic","Dem. Rep. Congo":"Democratic Republic of Congo","Congo":"Republic of the Congo","S. Sudan":"South Sudan","Côte d'Ivoire":"Ivory Coast","Eq. Guinea":"Equatorial Guinea","Lao PDR":"Laos","Macedonia":"North Macedonia"};
+const HANDLERS=["scrollZoom","boxZoom","dragRotate","dragPan","keyboard","doubleClickZoom","touchZoomRotate"];
+function setInteractive(on){if(map)HANDLERS.forEach(k=>{on?map[k].enable():map[k].disable();});}
+let lastView="home";
+const mapAt={country:null,venue:null};     // what is open on the map right now
+function paintCrumbs(){
+  const box=$("mcrumbs");box.innerHTML="";
+  const add=(label,href,here)=>{const a=h(here?"span":"a","ghost"+(here?" here":""),label);if(!here)a.href=href;box.append(a);};
+  if(mapAt.country===null&&mapAt.venue===null)return;
+  add("World","#/map",false);
+  if(mapAt.country)add(mapAt.country,"#/map/country/"+encodeURIComponent(mapAt.country),mapAt.venue===null);
+  if(mapAt.venue!==null)add(V[mapAt.venue][1],"",true);
+}
+function showOnMap(i,instant){
+  const v=V[i],card=$("card");card.hidden=false;card.innerHTML="";
+  const k=h("div","mono",v[2]||"Venue");k.style.color="#8a8780";
+  const dl=h("dl");[["Mapped places",fmt(v[7])],["Current building",v[5]||"year not on record"]].forEach(([a,b])=>dl.append(h("dt",null,a),h("dd",null,String(b))));
+  const a=h("a",null,"Open the venue page →");a.href="#/venue/"+v[0];
+  card.append(k,h("h3",null,v[1]),dl,a);
+  $("clist").hidden=true;mapAt.venue=i;mapAt.country=v[2]||null;paintCrumbs();
+  if(!mapReady){pendingVenue=i;return;}
+  // Stop on the framing the venue page opens with, so the picture does not jump on the page change.
+  const cam={center:[v[4],v[3]],zoom:venueZoom(),bearing:0,pitch:0};
+  if(instant)map.jumpTo(cam);else map.flyTo({...cam,duration:3200,curve:1.5,essential:true});
+}
+function showCountry(name){
+  const list=V.map((v,i)=>[v,i]).filter(([v])=>v[2]===name).sort((a,b)=>a[0][1].localeCompare(b[0][1]));   // alphabetical, top to bottom
+  const box=$("clist");box.innerHTML="";$("card").hidden=true;
+  mapAt.venue=null;mapAt.country=list.length?name:null;paintCrumbs();
+  if(!list.length){box.hidden=true;return;}
+  const x=h("a",null,"×");x.href="#/map";x.title="Close and return to the world map";
+  const hd=h("header");hd.append(h("b",null,name),h("span","mono",list.length+(list.length===1?" venue":" venues")),x);
+  const body=h("div");
+  list.forEach(([v])=>{const a=h("a");a.href="#/map/"+v[0];a.append(v[1],h("span",null,fmt(v[7])+" places"));body.append(a);});
+  box.append(hd,body);box.hidden=false;
+  const go=()=>{
+    if(list.length===1){map.flyTo({center:[list[0][0][4],list[0][0][3]],zoom:8,duration:1800});return;}
+    const xs=list.map(([v])=>v[4]),ys=list.map(([v])=>v[3]);
+    map.fitBounds([[Math.min(...xs),Math.min(...ys)],[Math.max(...xs),Math.max(...ys)]],{padding:{top:140,bottom:90,left:90,right:Math.min(420,innerWidth*0.35)},maxZoom:9,duration:1800});
+  };
+  if(mapReady)go();else pendingCountry=go;
+}
+function enterMap(i){
+  const was=document.body.classList.contains("in-map");
+  document.body.classList.add("in-map");window.scrollTo(0,0);setInteractive(true);
+  setTimeout(()=>{if(map)map.resize();},60);
+  if(typeof i==="number")showOnMap(i,lastView==="venue");
+  else if(typeof i==="string")showCountry(i);
+  else{$("card").hidden=true;$("clist").hidden=true;mapAt.country=null;mapAt.venue=null;paintCrumbs();
+    // back at world level from anywhere, including after a venue page
+    if(mapReady&&(was||lastView==="venue"||map.getZoom()>WORLD.zoom+0.3))map.flyTo({...WORLD,duration:1200});}
+}
+function exitMap(){
+  // always clear the map panels, even when the map was left through a venue page
+  $("card").hidden=true;$("clist").hidden=true;mapAt.country=null;mapAt.venue=null;paintCrumbs();
+  const was=document.body.classList.contains("in-map");
+  document.body.classList.remove("in-map");setInteractive(false);
+  if(map){map.resize();if(was||map.getZoom()>WORLD.zoom+0.3)map.flyTo({...WORLD,duration:was?1200:0});}
+}
+function initMap(){
+  basemapStyle().then(style=>{
+    map=new maplibregl.Map({container:"map",style,...WORLD,minZoom:1,maxZoom:18,attributionControl:false});
+    map.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-left");
+    // keep the credit folded to its "i" button; it opens on click
+    const foldCredit=()=>{const a=document.querySelector("#map .maplibregl-ctrl-attrib");if(a){a.classList.remove("maplibregl-compact-show");a.removeAttribute("open");}};
+    map.once("load",foldCredit);map.once("idle",foldCredit);
+    setInteractive(document.body.classList.contains("in-map"));
+    map.on("error",e=>console.error("map:",e.error&&e.error.message||e));
+    map.on("load",()=>{
+      map.getStyle().layers.forEach(l=>{if(l.type==="symbol")map.setLayoutProperty(l.id,"visibility","none");});
+      map.addSource("sat",{type:"raster",tiles:[SAT_TILES],tileSize:256,attribution:SAT_CREDIT});
+      map.addLayer({id:"sat",type:"raster",source:"sat",paint:{"raster-opacity":["interpolate",["linear"],["zoom"],12,0,14.5,1]}});
+      const feats=V.map((v,i)=>({type:"Feature",geometry:{type:"Point",coordinates:[v[4],v[3]]},properties:{i,name:v[1]}}));
+      const inMap=()=>document.body.classList.contains("in-map");
+      // World level: every venue is a small light, as on a night image. Overlapping lights add up.
+      map.addSource("venues",{type:"geojson",data:{type:"FeatureCollection",features:feats}});
+      map.addLayer({id:"venues-glow",type:"circle",source:"venues",maxzoom:DOTS_MAX_ZOOM,paint:{"circle-radius":["interpolate",["linear"],["zoom"],1,9,4,16],"circle-color":"#ffe9b8","circle-blur":1,"circle-opacity":0.2}});
+      map.addLayer({id:"venues-halo",type:"circle",source:"venues",maxzoom:DOTS_MAX_ZOOM,paint:{"circle-radius":["interpolate",["linear"],["zoom"],1,3.6,4,6],"circle-color":"#fff6e0","circle-blur":0.8,"circle-opacity":0.5}});
+      map.addLayer({id:"venues",type:"circle",source:"venues",maxzoom:DOTS_MAX_ZOOM,paint:{"circle-radius":["interpolate",["linear"],["zoom"],1,1.5,4,2.6],"circle-color":"#ffffff"}});
+      // Country and city level: venues that sit close together gather into one larger light with a count.
+      map.addSource("vc",{type:"geojson",data:{type:"FeatureCollection",features:feats},cluster:true,clusterRadius:42,clusterMaxZoom:9});
+      const isC=["has","point_count"],notC=["!",["has","point_count"]];
+      map.addLayer({id:"vc-glow-city",type:"circle",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:isC,paint:{"circle-radius":["interpolate",["linear"],["get","point_count"],2,26,20,46],"circle-color":"#ffe9b8","circle-blur":1,"circle-opacity":0.22}});
+      map.addLayer({id:"vc-glow",type:"circle",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:notC,paint:{"circle-radius":["interpolate",["linear"],["zoom"],4,14,12,26],"circle-color":"#ffe9b8","circle-blur":1,"circle-opacity":0.22}});
+      map.addLayer({id:"vc-cluster",type:"circle",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:isC,paint:{"circle-radius":["interpolate",["linear"],["get","point_count"],2,11,20,20],"circle-color":"rgba(255,246,224,0.16)","circle-stroke-width":1,"circle-stroke-color":"rgba(255,246,224,0.75)"}});
+      map.addLayer({id:"vc-count",type:"symbol",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:isC,layout:{"text-field":["get","point_count_abbreviated"],"text-font":MAP_FONT,"text-size":11,"text-allow-overlap":true},paint:{"text-color":"#ffffff"}});
+      map.addLayer({id:"vc-point",type:"circle",source:"vc",minzoom:DOTS_MAX_ZOOM,filter:notC,paint:{"circle-radius":["interpolate",["linear"],["zoom"],4,3.4,12,7],"circle-color":"#ffffff","circle-stroke-width":["interpolate",["linear"],["zoom"],10,0,13,2],"circle-stroke-color":ACCENT}});
+      const pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:10});
+      ["venues","vc-point"].forEach(id=>{
+        map.on("mousemove",id,e=>{if(!inMap())return;map.getCanvas().style.cursor="pointer";pop.setLngLat(e.features[0].geometry.coordinates).setText(e.features[0].properties.name).addTo(map);});
+        map.on("mouseleave",id,()=>{map.getCanvas().style.cursor="";pop.remove();});
+        map.on("click",id,e=>{if(inMap())location.hash="#/map/"+V[e.features[0].properties.i][0];});
+      });
+      map.on("mouseenter","vc-cluster",()=>{if(inMap())map.getCanvas().style.cursor="pointer";});
+      map.on("mouseleave","vc-cluster",()=>{map.getCanvas().style.cursor="";});
+      map.on("click","vc-cluster",e=>{if(!inMap())return;const f=e.features[0];
+        map.getSource("vc").getClusterExpansionZoom(f.properties.cluster_id).then(z=>map.easeTo({center:f.geometry.coordinates,zoom:z+0.6,duration:900}));});
+      // Countries that hold venues light up softly under the cursor; a click opens the country.
+      fetch("data/geo/ne_110m_countries.geojson").then(r=>r.json()).then(geo=>{
+        const has=new Set(V.map(v=>v[2]));
+        geo.features.forEach((f,i)=>{f.id=i;const n=GEO_ALIASES[f.properties.NAME]||f.properties.NAME;f.properties.name=n;f.properties.has=has.has(n)?1:0;});
+        map.addSource("countries",{type:"geojson",data:geo});
+        // a zoom ramp must be the outer expression, so the hover test sits inside its stops
+        const hov=["boolean",["feature-state","hover"],false],fade=v=>["interpolate",["linear"],["zoom"],5,["case",hov,v,0],7.5,0];
+        map.addLayer({id:"country-fill",type:"fill",source:"countries",filter:["==",["get","has"],1],paint:{"fill-color":"#ffffff","fill-opacity":fade(0.07)}},"venues-glow");
+        map.addLayer({id:"country-line",type:"line",source:"countries",filter:["==",["get","has"],1],paint:{"line-color":"#ffffff","line-width":1,"line-opacity":fade(0.45)}},"venues-glow");
+        let hid=null;const clear=()=>{if(hid!==null){map.setFeatureState({source:"countries",id:hid},{hover:false});hid=null;}};
+        map.on("mousemove","country-fill",e=>{if(!inMap()||map.getZoom()>7.5){clear();return;}
+          const id=e.features[0].id;if(id!==hid){clear();hid=id;map.setFeatureState({source:"countries",id},{hover:true});}});
+        map.on("mouseleave","country-fill",clear);
+        map.on("click","country-fill",e=>{if(!inMap()||map.getZoom()>7.5)return;
+          if(map.queryRenderedFeatures(e.point,{layers:["venues","vc-point","vc-cluster"]}).length)return;   // a venue or a city was clicked
+          location.hash="#/map/country/"+encodeURIComponent(e.features[0].properties.name);});
+      }).catch(e=>console.warn("country outlines unavailable:",e));
+      mapReady=true;
+      if(pendingCountry){const g=pendingCountry;pendingCountry=null;g();}
+      if(pendingVenue!==null)      mapReady=true;
+      if(pendingVenue!==null){const i=pendingVenue;pendingVenue=null;showOnMap(i);}
+    });
+  });
+}
+function initSearch(){
+  const q=$("q"),box=$("qres");q.placeholder="Search "+V.length+" venues";
+  const run=()=>{
+    const s=q.value.trim().toLowerCase();box.innerHTML="";
+    if(s.length<2){box.hidden=true;return;}
+    const hits=V.filter(v=>v[1].toLowerCase().includes(s)||v[2].toLowerCase().includes(s)).slice(0,10);
+    hits.forEach(v=>{const a=h("a");a.href="#/map/"+v[0];a.append(v[1],h("span",null,v[2]));a.addEventListener("click",()=>{box.hidden=true;q.value="";});box.append(a);});
+    if(!hits.length)box.append(h("a",null,"No venue matches"));
+    box.hidden=false;
+  };
+  q.addEventListener("input",run);
+  q.addEventListener("keydown",e=>{if(e.key==="Enter"){const a=box.querySelector("a[href]");if(a)a.click();}e.stopPropagation();});
+  document.addEventListener("click",e=>{if(!e.target.closest(".search"))box.hidden=true;});
+}
+const tip=$("tip");
+function bindTip(node,v){
+  node.addEventListener("mousemove",e=>{tip.hidden=false;tip.innerHTML="";tip.append(v[1]);tip.append(h("span",null,[v[2],v[5]].filter(Boolean).join(" · ")));
+    tip.style.left=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8)+"px";tip.style.top=(e.clientY-34)+"px";});
+  node.addEventListener("mouseleave",()=>{tip.hidden=true;});
+}
+function initHome(atlas){
+  const dated=V.filter(v=>v[5]!==null),undated=V.filter(v=>v[5]===null);
+  const one=atlas[Math.round((atlas.length-1)*0.8)],oneV=V[slugIndex[one.slug]];
+  const N={venues:V.length,countries:new Set(V.map(v=>v[2]).filter(Boolean)).size,dated:dated.length,undated:undated.length,
+    range:CFG.yearMin+" to "+CFG.yearMax,plates:atlas.length,cell:Math.round(2*CFG.radius/CFG.gridN),ring:CFG.ring,
+    onename:oneV[1],onecount:fmt(oneV[7])};
+  document.querySelectorAll("[data-n]").forEach(s=>{s.textContent=N[s.dataset.n];});
+  drawCells($("onecanvas"),1120,toMap(one.cells),null,17);
+  const box=$("atlasgrid");
+  atlas.forEach(f=>{
+    const v=V[slugIndex[f.slug]],a=h("a","plate");a.href="#/map/"+f.slug;a.title="Open "+v[1]+" on the map";
+    const cv=h("canvas");a.append(cv,h("div","plate-name",v[1]),h("div","plate-meta",(v[2]?v[2]+" · ":"")+fmt(v[7])+(v[7]===1?" place":" places")));
+    box.append(a);drawCells(cv,420,toMap(f.cells),null,8);
+  });
+  // timeline: one dot per venue
+  const dots=[];let active=null;
+  const svg=$("years"),W=1200,nY=CFG.yearMax-CFG.yearMin+1,step=(W-24)/nY,r=step*0.43;
+  const byYear={};dated.forEach(v=>{(byYear[v[5]]=byYear[v[5]]||[]).push(v);});
+  const maxStack=Math.max(1,...Object.values(byYear).map(a=>a.length)),H=maxStack*step+48,base=H-36;   // 36 leaves room for the year labels under the axis
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  svg.append(el("line",{x1:0,x2:W,y1:base+r+3,y2:base+r+3,stroke:"#555","stroke-width":1}));
+  const add=(parent,v,cx,cy)=>{const c=el("circle",{cx,cy,r,fill:"#fff"});bindTip(c,v);c.addEventListener("click",()=>{tip.hidden=true;location.hash="#/map/"+v[0];});parent.append(c);dots.push([c,v[6]]);};
+  const srt=(a,b)=>order[a[6]]-order[b[6]]||a[1].localeCompare(b[1]);
+  for(let y=CFG.yearMin;y<=CFG.yearMax;y++){
+    const x=12+(y-CFG.yearMin+0.5)*step;
+    if(y%10===0){svg.append(el("line",{x1:x,x2:x,y1:base+r+3,y2:base+r+8,stroke:"#555","stroke-width":1}),el("text",{x,y:base+r+20,"text-anchor":"middle"},y));}
+    (byYear[y]||[]).sort(srt).forEach((v,i)=>add(svg,v,x,base-i*step));
+  }
+  const chips=$("chips");
+  PROG.forEach(([k,label])=>{
+    const n=V.filter(v=>v[6]===k).length;if(!n)return;
+    const b=h("button");b.type="button";b.setAttribute("aria-pressed","false");b.append(label,h("b",null,n));
+    b.addEventListener("click",()=>{active=active===k?null:k;
+      chips.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
+      if(active)b.setAttribute("aria-pressed","true");
+      dots.forEach(([d,p])=>{d.setAttribute("fill",active&&p===active?ACCENT:"#fff");d.style.opacity=active===null||p===active?1:0.16;});});
+    chips.append(b);
+  });
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("on");io.unobserve(e.target);}}),{threshold:0.12});
+  document.querySelectorAll(".reveal").forEach(n=>io.observe(n));
+}
+
+// ================= VENUE =================
+let cur=null,selCat=null,selType=null;   // selected kind (index into cats) and type (index into types)
+const SAT={z:16,cols:11,rows:7,tile:256};
+// Scale of the satellite mosaic behind the venue title. p = how far the card has scrolled away (0..1).
+// The card fills the window, so the window size is used: the map can then stop on the same framing.
+function satScale(p){
+  const w=innerWidth,hh=Math.max(innerHeight,600);
+  return Math.max(w/((SAT.cols-1)*SAT.tile),hh/((SAT.rows-1)*SAT.tile))*(1.04+0.5*(1-p));
+}
+// Map zoom that shows the same picture as the mosaic at rest (256 px tiles of level z fill the screen at map zoom z-1).
+const venueZoom=()=>SAT.z-1+Math.log2(satScale(0));
+function buildSat(v){
+  const box=$("sat");box.innerHTML="";box.classList.remove("live");
+  const n=2**SAT.z,xf=(v.lng+180)/360*n,la=v.lat*Math.PI/180,yf=(1-Math.log(Math.tan(la)+1/Math.cos(la))/Math.PI)/2*n;
+  const x0=Math.floor(xf)-(SAT.cols>>1),y0=Math.floor(yf)-(SAT.rows>>1);
+  for(let r=0;r<SAT.rows;r++)for(let c=0;c<SAT.cols;c++){
+    const im=new Image();im.alt="";im.decoding="async";
+    im.style.left=((x0+c-xf)*SAT.tile)+"px";im.style.top=((y0+r-yf)*SAT.tile)+"px";
+    im.src=SAT_TILES.replace("{z}",SAT.z).replace("{y}",y0+r).replace("{x}",((x0+c)%n+n)%n);
+    box.append(im);}
+  // No movement on arrival: the picture is the one the map stopped on. It pulls back only on scroll.
+  box.style.transform=`scale(${satScale(0)})`;
+  const top=$("top");top.classList.remove("arrive");void top.offsetWidth;top.classList.add("arrive");
+}
+function satOnScroll(){
+  if(document.body.dataset.view!=="venue")return;
+  const p=Math.min(1,scrollY/$("top").clientHeight);
+  document.body.classList.toggle("scrolled",p>0.85);
+  $("sat").style.transform=`scale(${satScale(p)})`;
+}
+addEventListener("scroll",satOnScroll,{passive:true});
+addEventListener("resize",satOnScroll);
+
+function paintCircle(){
+  const v=cur;let lit=null,label=`All ${fmt(v.n)} places`;
+  if(selType!==null){lit=toMap(v.typeGrid[selType]);label=`${v.types[selType][0]} · ${fmt(v.types[selType][2])} places`;}
+  else if(selCat!==null){lit=toMap(v.grid[selCat]);label=`${v.cats[selCat][0]} · ${fmt(v.cats[selCat][1])} places`;}
+  drawCells($("circleCanvas"),1400,v._cells,lit,15);
+  $("showing").textContent=label;
+  document.querySelectorAll("#cats button").forEach((b,j)=>{b.setAttribute("aria-pressed",String(selCat===j));b.classList.toggle("off",selCat!==null&&selCat!==j);});
+  document.querySelectorAll("#types button").forEach(b=>{const on=selType===+b.dataset.t;b.setAttribute("aria-pressed",String(on));b.classList.toggle("off",selType!==null&&!on);});
+}
+// The type list answers the question the reader has just asked: all places, or one kind.
+function paintTypes(){
+  const v=cur,box=$("types");box.innerHTML="";
+  const list=selCat===null?v.topTypes:v.kindTypes[selCat];
+  $("typeshead").innerHTML="";
+  if(selCat===null){$("typeshead").textContent="Most common types";$("typescount").textContent="";}
+  else{$("typeshead").append("Most common ",h("b",null,v.cats[selCat][0])," types");$("typescount").textContent=v.kindNTypes[selCat]+(v.kindNTypes[selCat]===1?" type":" types")+" in this kind";}
+  list.forEach(ti=>{const[t,c,n]=v.types[ti],b=h("button");b.type="button";b.dataset.t=ti;b.title=c;b.append(h("span","tn",t),h("span",null,fmt(n)));
+    b.addEventListener("click",()=>{selType=selType===ti?null:ti;paintCircle();});box.append(b);});
+}
+function pickCat(j){selCat=selCat===j?null:j;selType=null;paintTypes();paintCircle();}
+
+// ---- 02: what is in the selected distance ring ----
+// One row per kind, largest first. One square is 2% of the ring's places, 25 squares to a line.
+const RM_ROWS=6,RM_SQUARES=50;
+function paintRingMix(v,j){
+  const box=$("ringmix"),total=v.rings[j],pairs=v.ringKinds[j];box.innerHTML="";
+  box.append(h("div","mono",`${j*CFG.ring} to ${(j+1)*CFG.ring} m from the stadium`));
+  if(!total){box.append(h("div","rm-head","No mapped places in this ring"));return;}
+  box.append(h("div","rm-head",`${fmt(total)} ${total===1?"place":"places"}`),
+    h("p","rm-sub",`${fmt(Math.round(v.ringDensity[j]))} per km² · ${ordinal(v.ringRank[j])} of ${V.length} venues in this ring`));
+  const kinds=[];for(let i=0;i<pairs.length;i+=2)kinds.push([v.cats[pairs[i]][0],pairs[i+1]]);
+  kinds.sort((a,b)=>b[1]-a[1]);
+  const shown=kinds.slice(0,RM_ROWS),rest=kinds.slice(RM_ROWS),restN=rest.reduce((n,k)=>n+k[1],0);
+  if(rest.length)shown.push([rest.length===1?rest[0][0]:`${rest.length} other kinds`,restN]);
+  const rows=h("div","rm-rows");
+  shown.forEach(([kind,n])=>{const row=h("div","rm-row"),sq=h("div","rm-sq"),val=h("div","rm-val"),pct=Math.round(100*n/total);
+    for(let i=0;i<Math.round(RM_SQUARES*n/total);i++)sq.append(h("i"));
+    val.append(h("b",null,fmt(n))," · "+pct+"%");row.append(h("div",null,walkLabel(kind)),sq,val);
+    row.addEventListener("mousemove",e=>{tip.hidden=false;tip.innerHTML="";tip.append(`${walkLabel(kind)} · ${fmt(n)} of ${fmt(total)} places in this ring`);
+      tip.style.left=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8)+"px";tip.style.top=(e.clientY-34)+"px";});
+    row.addEventListener("mouseleave",()=>{tip.hidden=true;});rows.append(row);});
+  box.append(rows);
+  const types=v.ringTypes[j];
+  if(types.length){const p=h("p","rm-types","Most common types: ");types.forEach(([t,n],i)=>p.append(i?" · ":"",h("b",null,walkLabel(t)),` (${fmt(n)})`));box.append(p);}
+  box.append(h("p","rm-note",`One square is ${100/RM_SQUARES}% of the places in this ring.`));
+}
+
+// ---- 03: streets and walking time ----
+const W={v:null,view:"walking",base:"satellite",ready:false},streetCache={};
+let streetSet=new Set(),streetListReady=false,wmap=null,wQueued=null,wReach=null,wCircleMarker=null;
+const WCOLORS={5:"rgb(255,214,64)",10:"rgb(250,160,24)",15:"rgb(238,104,28)",20:"rgb(205,34,62)",25:"rgb(138,20,84)"};
+fetch(AGG+"streets/index.json").then(r=>{if(!r.ok)throw new Error("street index: HTTP "+r.status);return r.json();}).then(ix=>{streetSet=new Set(ix.venues);}).catch(()=>{streetSet=new Set();}).finally(()=>{streetListReady=true;if(cur)walkReset(cur);});
+const walkObserver=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting&&cur)loadWalk(cur);}),{rootMargin:"600px"});
+walkObserver.observe($("walk"));
+function walkSegments(v){return {type:"FeatureCollection",features:v.segs.map((s,i)=>({type:"Feature",id:i,geometry:{type:"LineString",coordinates:s[0]},properties:{row:i,pr:s[2],band:s[3],name:s[4]}}))};}
+function walkIsochrones(v){return {type:"FeatureCollection",features:[25,20,15,10,5].map(b=>({type:"Feature",geometry:{type:"MultiPolygon",coordinates:v.iso[b]},properties:{band:b}}))};}
+function walkIsoExteriors(v){return {type:"FeatureCollection",features:(v.iso[15]||[]).map(p=>({type:"Feature",geometry:{type:"LineString",coordinates:p[0]},properties:{}}))};}
+function walkCircle(v){const ring=[],kx=M_PER_DEG*Math.cos(v.lat*Math.PI/180);for(let i=0;i<=96;i++){const a=i/96*2*Math.PI;ring.push([v.lng+1500*Math.cos(a)/kx,v.lat+1500*Math.sin(a)/M_PER_DEG]);}return {type:"Feature",geometry:{type:"LineString",coordinates:ring},properties:{}};}
+function walkNorth(v){return [v.lng,v.lat+1500/M_PER_DEG];}
+function walkBounds(v){const dx=1500/(M_PER_DEG*Math.cos(v.lat*Math.PI/180)),dy=1500/M_PER_DEG;return [[v.lng-dx,v.lat-dy],[v.lng+dx,v.lat+dy]];}
+function walkStreetText(p){return `<strong>${p.name||"No name in the street data"}</strong>`;}
+function walkDetailText(p){return W.view==="through"?`Carries at least as many shortest routes as ${p.pr}% of the street segments in this circle.`:(p.band?`Within a ${p.band}-minute walk.`:"Beyond a 25-minute walk.");}
+function adjacency(v){if(v._adj)return v._adj;const a=Array.from({length:v.n_nodes},()=>[]);v.segs.forEach(s=>{a[s[5]].push([s[6],s[7]]);a[s[6]].push([s[5],s[7]]);});return v._adj=a;}
+function reach(v,rowIndex,t){const s=v.segs[rowIndex],adj=adjacency(v),dist=Array(v.n_nodes).fill(Infinity),queue=[];function offer(node,value){if(value<=400&&value<dist[node]){dist[node]=value;queue.push([value,node]);}}offer(s[5],t*s[7]);offer(s[6],(1-t)*s[7]);while(queue.length){queue.sort((a,b)=>a[0]-b[0]);const[d,u]=queue.shift();if(d!==dist[u])continue;adj[u].forEach(([node,len])=>offer(node,d+len));}const kinds={};let places=0;Object.entries(v.node_kinds).forEach(([node,counts])=>{if(dist[+node]<=400)Object.entries(counts).forEach(([kind,n])=>{places+=n;kinds[kind]=(kinds[kind]||0)+n;});});const edges=v.segs.reduce((out,row,i)=>{if(dist[row[5]]<=400&&dist[row[6]]<=400)out.push(i);return out;},[]),km=+((edges.reduce((n,i)=>n+v.segs[i][7],0)/1000).toFixed(2));return {places,km,kinds,_edges:edges};}
+window.__reach=(rowIndex,t)=>{const r=reach(W.v,rowIndex,t);return {places:r.places,km:r.km,kinds:r.kinds};};
+window.__walk=()=>W;
+function projectedPoint(coords,lngLat){const target=wmap.project(lngLat);let best={d:Infinity,t:0,point:coords[0]},travel=0,total=0,lengths=[];for(let i=1;i<coords.length;i++){const a=wmap.project(coords[i-1]),b=wmap.project(coords[i]),len=Math.hypot(b.x-a.x,b.y-a.y);lengths.push(len);total+=len;}for(let i=1;i<coords.length;i++){const a=wmap.project(coords[i-1]),b=wmap.project(coords[i]),dx=b.x-a.x,dy=b.y-a.y,len2=dx*dx+dy*dy,q=len2?Math.max(0,Math.min(1,((target.x-a.x)*dx+(target.y-a.y)*dy)/len2)):0,x=a.x+q*dx,y=a.y+q*dy,d=Math.hypot(target.x-x,target.y-y);if(d<best.d)best={d,t:(travel+q*lengths[i-1])/(total||1),point:wmap.unproject([x,y])};travel+=lengths[i-1];}return best;}
+function clearReach(repaint=true){wReach=null;if(W.ready){wmap.getSource("reach").setData({type:"FeatureCollection",features:[]});wmap.getSource("click-dot").setData({type:"FeatureCollection",features:[]});}if(repaint)paintWalkSide();}
+function drawReach(row,t,point,name,coordinates){const result=reach(W.v,row,t);result.name=name;result.coordinates=coordinates;wReach=result;wmap.getSource("reach").setData({type:"FeatureCollection",features:result._edges.map(i=>({type:"Feature",geometry:{type:"LineString",coordinates:W.v.segs[i][0]},properties:{}}))});wmap.getSource("click-dot").setData({type:"Feature",geometry:{type:"Point",coordinates:[point.lng,point.lat]},properties:{}});paintWalkSide();}
+async function copyWalkCoordinates(button,value){try{await navigator.clipboard.writeText(value);button.textContent="Copied";}catch(error){}}
+function walkReachNode(){const box=h("div","wreach");if(!wReach){box.append(h("div","wlabel","Explore"),h("p",null,"Click a street to see what is within a 5-minute walk of that point."));return box;}const r=wReach,summary=r.places?`${fmt(r.places)} mapped places are within a 5-minute walk of this point, along ${r.km.toFixed(2)} km of street.`:"No mapped places are within a 5-minute walk of this point.";box.append(h("div","wlabel","From the point you clicked"),h("p","wstreet",r.name||"No name in the street data"));const row=h("div","wcoord-row"),button=h("button","wbtn","Copy coordinates");button.addEventListener("click",()=>copyWalkCoordinates(button,r.coordinates));row.append(h("span","wcoords",r.coordinates),button);box.append(row,h("p",null,summary));const entries=Object.entries(r.kinds).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,5);if(entries.length){const list=h("ul","wreach-lines");entries.forEach(([kind,n])=>list.append(h("li",null,`${walkLabel(kind)} (${n})`)));box.append(list);}const clear=h("button","wbtn","Clear");clear.addEventListener("click",()=>clearReach());box.append(clear);return box;}
+function walkLabel(s){return s.charAt(0).toUpperCase()+s.slice(1).replaceAll("_"," ");}
+function walkStatsHtml(v){return `<div class="wstats"><div class="wlabel">From the stadium, inside the 1,500 m circle</div><div class="wstats-scroll"><table><colgroup><col style="width:18%"><col style="width:12%"><col style="width:18%"><col style="width:26%"><col style="width:26%"></colgroup><thead><tr><th>Walk</th><th>Places</th><th>Per km of street</th><th>Most common kind</th><th>Most common type</th></tr></thead><tbody>${v.band_stats.map(r=>`<tr><td>${r.from} to ${r.to} min</td><td>${fmt(r.places)}</td><td>${r.per_km===null?"n/a":r.per_km}</td>${r.top_kind===null?'<td colspan="2">too few to say</td>':`<td>${walkLabel(r.top_kind)} (${r.top_kind_n})</td><td>${walkLabel(r.top_type)} (${r.top_type_n})</td>`}</tr>`).join("")}</tbody></table></div><div class="wnote wtable-note">Kinds and types are the labels given by the mapping platform. A ring with fewer than 10 places shows no most common value.</div></div>`;}
+function paintWalkLegend(){const legend=$("wleg");legend.innerHTML="";const group=h("div","wleg-group");if(W.view==="through"){group.append(h("span",null,"Through streets:"),h("span",null,"few routes"),h("span","wramp"),h("span",null,"most routes"));}else{group.append(h("span",null,"Walking time:"));const swatches=h("div","wswatches");[5,10,15,20,25].forEach(b=>{const span=h("span"),swatch=h("i","wswatch");swatch.style.background=WCOLORS[b];span.append(swatch,`${b} min`);swatches.append(span);});const reachKey=h("span"),dash=h("i","wdash");reachKey.append(dash,"15-minute reach");swatches.append(reachKey);group.append(swatches);}legend.append(group,h("span","wcircle-note","Circle: 1,500 m from the center of the stadium."));
+  // Credits sit under the map, not on it. Imagery is credited only while the satellite base is showing.
+  const credit=h("p","wcred");if(W.base==="satellite")credit.append(SAT_CREDIT+". ");credit.append(STREET_CREDIT+". Base map ");
+  [["OpenFreeMap","https://openfreemap.org"],["© OpenMapTiles","https://www.openmaptiles.org/"],["data from OpenStreetMap","https://www.openstreetmap.org/copyright"]].forEach(([t,u],i)=>{const a=h("a",null,t);a.href=u;a.target="_blank";a.rel="noopener";credit.append(i?", ":"",a);});
+  credit.append(".");legend.append(credit);}
+function paintWalkSide(){if(!W.v)return;const side=$("wside"),stats=$("wstats");side.innerHTML="";paintWalkLegend();if(W.view==="through"){side.append(h("h2",null,"Streets most routes pass through"),h("p",null,"Each street segment is colored by how many of the shortest routes between street corners run along it. Bright streets are the ones the network depends on. This describes the street layout, not counted people."),walkReachNode());stats.innerHTML="";}else{const p=W.v.places;side.append(h("h2",null,"How far you get on foot"),h("p",null,`${fmt(p.b5)} of ${fmt(p.tied)} mapped places are within a 5-minute walk by street, ${fmt(p.b10)} within 10, ${fmt(p.b15)} within 15, ${fmt(p.b20)} within 20 and ${fmt(p.b25)} within 25.`),h("p",null,W.v.origin_fallback?"Walking time is measured along the streets at 4.8 km/h, starting at the street corner nearest the stadium.":"Walking time is measured along the streets at 4.8 km/h, starting from the street corners around the stadium."));if(p.off>0)side.append(h("p",null,p.off===1?"1 place lies more than 150 m from the connected street network and is not counted.":`${fmt(p.off)} places lie more than 150 m from the connected street network and are not counted.`));side.append(walkReachNode());stats.innerHTML=walkStatsHtml(W.v);}}
+function setWalkVisibility(){if(!W.ready)return;wmap.setLayoutProperty("through","visibility",W.view==="through"?"visible":"none");["base-streets","bands","iso25-fill","iso20-fill","iso15-fill","iso10-fill","iso5-fill","iso15-line"].forEach(id=>wmap.setLayoutProperty(id,"visibility",W.view==="walking"?"visible":"none"));wmap.setLayoutProperty("satellite","visibility",W.base==="satellite"?"visible":"none");}
+function paintWalkControls(){const box=$("wctl");box.innerHTML="";const seg=(label,key,opts)=>{const row=h("div","seg"),grp=h("div");row.append(h("span","mono",label),grp);opts.forEach(([value,text])=>{const button=h("button",null,text);button.setAttribute("aria-pressed",String(W[key]===value));button.addEventListener("click",()=>{W[key]=value;paintWalkControls();paintWalkSide();setWalkVisibility();});grp.append(button);});box.append(row);};seg("View","view",[["walking","Walking time"],["through","Through streets"]]);seg("Base","base",[["dark","Dark"],["satellite","Satellite"]]);}
+function paintWalk(){if(!W.v)return;paintWalkControls();paintWalkSide();if(!W.ready)return;const v=W.v;wmap.getSource("segs").setData(walkSegments(v));wmap.getSource("iso").setData(walkIsochrones(v));wmap.getSource("iso15-exteriors").setData(walkIsoExteriors(v));wmap.getSource("circle").setData(walkCircle(v));wmap.getSource("center").setData({type:"Feature",geometry:{type:"Point",coordinates:[v.lng,v.lat]},properties:{}});if(wCircleMarker)wCircleMarker.remove();const marker=h("div","wcircle-label","1,500 m");wCircleMarker=new maplibregl.Marker({element:marker,anchor:"bottom"}).setLngLat(walkNorth(v)).addTo(wmap);setWalkVisibility();wmap.fitBounds(walkBounds(v),{padding:28,duration:0});}
+function setWalk(v){W.v=v;clearReach(false);if(!wmap){wQueued=v;basemapStyle().then(style=>{wmap=new maplibregl.Map({container:"wmap",style,center:[v.lng,v.lat],zoom:13.6,pitch:0,cooperativeGestures:true,attributionControl:false});new ResizeObserver(()=>wmap.resize()).observe($("wmap"));wmap.on("load",()=>{wmap.getStyle().layers.forEach(l=>{if(l.type==="symbol")wmap.setLayoutProperty(l.id,"visibility","none");});wmap.addSource("satellite",{type:"raster",tiles:[SAT_TILES],tileSize:256,attribution:SAT_CREDIT});wmap.addLayer({id:"satellite",type:"raster",source:"satellite",layout:{visibility:"none"},paint:{"raster-brightness-max":0.55}});wmap.addSource("segs",{type:"geojson",data:{type:"FeatureCollection",features:[]},attribution:STREET_CREDIT});wmap.addSource("iso",{type:"geojson",data:{type:"FeatureCollection",features:[]}});wmap.addSource("iso15-exteriors",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+wmap.addLayer({id:"through",type:"line",source:"segs",filter:["!=",["get","pr"],null],layout:{"line-cap":"round","line-join":"round","line-sort-key":["get","pr"]},paint:{"line-color":["interpolate",["linear"],["get","pr"],0,"rgb(70,18,72)",20,"rgb(138,20,84)",40,"rgb(205,34,62)",60,"rgb(238,104,28)",80,"rgb(250,160,24)",100,"rgb(255,214,64)"],"line-width":["interpolate",["linear"],["get","pr"],0,0.6,50,1.2,90,2.5,100,4.5],"line-opacity":0.9}});wmap.addLayer({id:"base-streets",type:"line",source:"segs",filter:["==",["get","band"],null],layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":"#5a5a5a","line-width":0.7,"line-opacity":0.8}});[25,20,15,10,5].forEach(b=>wmap.addLayer({id:`iso${b}-fill`,type:"fill",source:"iso",filter:["==",["get","band"],b],paint:{"fill-color":WCOLORS[b],"fill-opacity":0.14}}));wmap.addLayer({id:"bands",type:"line",source:"segs",filter:["!=",["get","band"],null],layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":["match",["get","band"],5,WCOLORS[5],10,WCOLORS[10],15,WCOLORS[15],20,WCOLORS[20],25,WCOLORS[25],"#5a5a5a"],"line-width":1.6,"line-opacity":0.95}});wmap.addLayer({id:"iso15-line",type:"line",source:"iso15-exteriors",paint:{"line-color":"#f2f2f2","line-width":1.3,"line-dasharray":[2,2],"line-opacity":0.9}});wmap.addLayer({id:"hit",type:"line",source:"segs",paint:{"line-opacity":0,"line-width":12}});wmap.addSource("circle",{type:"geojson",data:{type:"FeatureCollection",features:[]}});wmap.addLayer({id:"circle",type:"line",source:"circle",paint:{"line-color":"#f2f2f2","line-width":1,"line-opacity":0.35}});wmap.addSource("center",{type:"geojson",data:{type:"FeatureCollection",features:[]}});wmap.addLayer({id:"center",type:"circle",source:"center",paint:{"circle-radius":5,"circle-color":"#f2b200"}});wmap.addSource("reach",{type:"geojson",data:{type:"FeatureCollection",features:[]}});wmap.addLayer({id:"reach",type:"line",source:"reach",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":"#ffffff","line-width":2.6,"line-opacity":0.95}});wmap.addSource("click-dot",{type:"geojson",data:{type:"FeatureCollection",features:[]}});wmap.addLayer({id:"click-dot",type:"circle",source:"click-dot",paint:{"circle-radius":5,"circle-color":"#ffffff","circle-stroke-color":"#111111","circle-stroke-width":1}});
+const hover=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8});wmap.on("mousemove","hit",e=>{const p=e.features[0].properties;hover.setLngLat(e.lngLat).setHTML(`${walkStreetText(p)}<br>${walkDetailText(p)}`).addTo(wmap);});wmap.on("mouseleave","hit",()=>hover.remove());wmap.on("click","hit",e=>{hover.remove();const feature=e.features[0],p=feature.properties,projected=projectedPoint(feature.geometry.coordinates,e.lngLat),lat=e.lngLat.lat.toFixed(6),lng=e.lngLat.lng.toFixed(6),value=`${lat}, ${lng}`;drawReach(+p.row,projected.t,projected.point,p.name,value);});W.ready=true;W.v=wQueued;wQueued=null;paintWalk();});});}else if(W.ready)paintWalk();else wQueued=v;paintWalk();}
+function loadWalk(v){if(!streetSet.has(v.slug))return;if(!streetCache[v.slug])streetCache[v.slug]=fetch(AGG+"streets/"+v.slug+".json").then(r=>{if(!r.ok)throw new Error(v.slug+": HTTP "+r.status);return r.json();});streetCache[v.slug].then(data=>{if(cur!==v)return;setWalk(data);}).catch(()=>{if(cur===v)$("walk").hidden=true;});}
+function numberSections(){let n=$("walk").hidden?3:4;$("labb").textContent=n.toString().padStart(2,"0")+" / Built ground";if(!$("built").hidden)n++;$("lab4").textContent=n.toString().padStart(2,"0")+" / Quantity and mix";$("lab5").textContent=(n+1).toString().padStart(2,"0")+" / In the study";}
+function walkReset(v){clearReach(false);W.v=null;$("wside").innerHTML="";$("wleg").innerHTML="";$("wstats").innerHTML="";$("walk").hidden=!streetListReady||!streetSet.has(v.slug);
+  // Later sections are numbered by what is actually shown, so no number is skipped.
+  numberSections();
+  if(!$("walk").hidden){const rect=$("walk").getBoundingClientRect();if(rect.top<innerHeight+600&&rect.bottom>-600)loadWalk(v);}}
+
+// ---- buildings, residents and height ----
+const B={v:null,layer:"footprints",heightMode:"buildings",onTop:true,base:"satellite",opacity:85,ready:false},layerCache={};
+let layerSet=new Set(),layerTops={top_pop:1,top_h:1},bmap=null,bQueued=null;
+fetch("layers/index.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(ix=>{layerSet=new Set(ix.venues);layerTops=ix;if(cur)builtReset(cur);}).catch(()=>{layerSet=new Set();if(cur)builtReset(cur);});
+const builtObserver=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting&&cur)loadBuilt(cur);}),{rootMargin:"600px"});builtObserver.observe($("built"));
+const BEMPTY={type:"FeatureCollection",features:[]},BRAMP=[0,"rgb(70,18,72)",.25,"rgb(138,20,84)",.5,"rgb(205,34,62)",.72,"rgb(238,104,28)",.88,"rgb(250,160,24)",1,"rgb(255,214,64)"];
+function bRamp(top,key){return ["interpolate",["linear"],["max",0,["min",1,["/",["get",key],top]]],...BRAMP];}
+function bPoint(v,x,y){return [v.lng0+x/v.mx,v.lat0+y/v.my];}
+function decodeBuilt(v){let f=0;const footprints=[];v.fp.forEach(a=>{let x=a[1],y=a[2],ring=[bPoint(v,x/10,y/10)];for(let k=3;k<a.length;k+=2){x+=a[k];y+=a[k+1];ring.push(bPoint(v,x/10,y/10));}ring.push(ring[0]);const c=a[0],hv=c<0||v.h[c]===null?null:v.h[c];footprints.push({type:"Feature",id:f++,geometry:{type:"Polygon",coordinates:[ring]},properties:{h:hv}});});const cells=(values)=>({type:"FeatureCollection",features:values.flatMap((value,c)=>{if(value===null||value===0)return[];const i=c%30,j=Math.floor(c/30),x=-1500+100*i,y=-1500+100*j,ring=[[x,y],[x+100,y],[x+100,y+100],[x,y+100],[x,y]].map(p=>bPoint(v,p[0],p[1]));return[{type:"Feature",geometry:{type:"Polygon",coordinates:[ring]},properties:{v:value}}];})});v._footprints={type:"FeatureCollection",features:footprints};v._pop=cells(v.pop);v._h=cells(v.h);return v;}
+function bCircle(v){const ring=[];for(let i=0;i<=128;i++){const a=2*Math.PI*i/128;ring.push(bPoint(v,1500*Math.cos(a),1500*Math.sin(a)));}return {type:"Feature",geometry:{type:"LineString",coordinates:ring},properties:{}};}
+function bBounds(v){return [bPoint(v,-1500,-1500),bPoint(v,1500,1500)];}
+function paintBuiltControls(){const box=$("bctl");box.innerHTML="";const seg=(label,key,opts,setter)=>{const row=h("div","seg"),grp=h("div");row.append(h("span","mono",label),grp);opts.forEach(([value,text])=>{const button=h("button",null,text);button.setAttribute("aria-pressed",String(B[key]===value));button.onclick=()=>setter(value);grp.append(button);});box.append(row);};seg("Layer","layer",[["footprints","Footprints"],["residents","Residents"],["height","Height"]],setLayer);if(B.layer==="height")seg("Show","heightMode",[["buildings","Buildings"],["cells","Cells"]],setHeightMode);seg("Base","base",[["dark","Dark"],["satellite","Satellite"]],setBase);}
+function formatTop(n){return Number(n).toLocaleString("en-US",{maximumFractionDigits:2});}
+function baseLinks(node){node.append("Base map ");[["OpenFreeMap","https://openfreemap.org"],["© OpenMapTiles","https://www.openmaptiles.org/"],["data from OpenStreetMap","https://www.openstreetmap.org/copyright"]].forEach(([t,u],i)=>{const a=h("a",null,t);a.href=u;a.target="_blank";a.rel="noopener";node.append(i?", ":"",a);});node.append(".");}
+function paintBuiltLegend(){const box=$("bleg");box.innerHTML="";if(!B.v)return;const group=h("div","wleg-group");if(B.layer==="footprints")group.append(B.v.totals.footprints?"Each shape is one building footprint.":"No building footprints in the source data for this circle.");else{const rampBox=h("span","bramp-box"),ramp=h("span","bramp"),labels=h("span","bramp-labels"),top=B.layer==="residents"?formatTop(layerTops.top_pop)+" or more":formatTop(layerTops.top_h)+" m or more";labels.append(h("span",null,B.layer==="residents"?"0":"0 m"),h("span",null,top));rampBox.append(ramp,labels);group.append(rampBox,h("span",null,B.layer==="residents"?"Residents per 100 m square (one hectare). Model estimate for 2020.":B.heightMode==="buildings"?"Color shows the average building height of the 100 m square each building sits in, not the height of that building. Satellite estimate for 2018.":"Average building height in each 100 m square. Satellite estimate for 2018."));}box.append(group);if(B.layer==="residents"){const label=h("label",null),input=document.createElement("input");input.type="checkbox";input.checked=B.onTop;input.onchange=e=>setOnTop(e.target.checked);label.append(input," Footprints on top");box.append(label);}const slider=h("label","bslider","Layer opacity"),input=document.createElement("input");input.type="range";input.min=30;input.max=100;input.step=5;input.value=B.opacity;input.oninput=e=>setOpacity(e.target.value);slider.append(input,h("span",null,String(B.opacity)));box.append(slider,h("span","wcircle-note","Circle: 1,500 m from the center of the stadium."));const credit=h("p","wcred","Building footprints via Overture Maps Foundation: © OpenStreetMap contributors (ODbL), Google Open Buildings (CC BY 4.0 or ODbL), Microsoft (ODbL) and others. Residents and height: GHSL, European Commission, Joint Research Centre, CC BY 4.0, adapted. Residents are a model estimate for 2020. Height is a satellite estimate for 2018, averaged over the built part of each square. ");if(B.base==="satellite")credit.append(SAT_CREDIT+". ");baseLinks(credit);box.append(credit);}
+function paintBuiltSide(){const side=$("bside");side.innerHTML="";if(!B.v)return;const t=B.v.totals,rows=[["Footprints drawn",fmt(t.footprints)],["Estimated residents",fmt(Math.round(t.residents))],["Median height",t.median_h===null?"n/a":t.median_h.toFixed(1)+" m"],["Tallest cell",t.tallest_h===null?"n/a":t.tallest_h.toFixed(1)+" m"],["Settlement class",t.settlement]];side.append(h("h2",null,"What is on the ground"));rows.forEach(([a,b])=>{const row=h("div","metric");row.append(h("span","wlabel",a),h("span","metric-value",String(b)));side.append(row);});side.append(h("p","wnote","Residents and heights are read from the 100 m squares whose center is inside the circle."));}
+function paintBuiltMap(){if(!B.ready||!B.v)return;const cellMode=B.layer==="residents"||(B.layer==="height"&&B.heightMode==="cells"),buildingHeight=B.layer==="height"&&B.heightMode==="buildings";bmap.getSource("b-cells").setData(B.layer==="residents"?B.v._pop:B.v._h);bmap.getSource("b-footprints").setData(B.v._footprints);bmap.getSource("b-circle").setData(bCircle(B.v));bmap.getSource("b-center").setData({type:"Feature",geometry:{type:"Point",coordinates:[B.v.lng0,B.v.lat0]},properties:{}});bmap.setLayoutProperty("satellite","visibility",B.base==="satellite"?"visible":"none");bmap.setLayoutProperty("b-cells","visibility",cellMode?"visible":"none");bmap.setLayoutProperty("b-footprints","visibility",B.layer==="footprints"||buildingHeight||(cellMode&&B.onTop)?"visible":"none");bmap.setPaintProperty("b-cells","fill-color",bRamp(B.layer==="height"?layerTops.top_h:layerTops.top_pop,"v"));bmap.setPaintProperty("b-cells","fill-opacity",B.opacity/100);bmap.setPaintProperty("b-footprints","fill-color",buildingHeight?["case",["any",["==",["get","h"],null],["<=",["get","h"],0]],"#3a3832",bRamp(layerTops.top_h,"h")]:"#ffffff");bmap.setPaintProperty("b-footprints","fill-opacity",cellMode?.35:B.opacity/100);bmap.fitBounds(bBounds(B.v),{padding:28,duration:0});}
+function paintBuilt(){paintBuiltControls();paintBuiltLegend();paintBuiltSide();paintBuiltMap();}
+function setBuilt(v){B.v=decodeBuilt(v);if(!bmap){bQueued=B.v;basemapStyle().then(style=>{bmap=new maplibregl.Map({container:"bmap",style,center:[v.lng0,v.lat0],zoom:13.6,pitch:0,cooperativeGestures:true,attributionControl:false,dragRotate:false,pitchWithRotate:false,maxZoom:18});new ResizeObserver(()=>bmap.resize()).observe($("bmap"));bmap.on("load",()=>{bmap.getStyle().layers.forEach(l=>{if(l.type==="symbol")bmap.setLayoutProperty(l.id,"visibility","none");});bmap.addSource("satellite",{type:"raster",tiles:[SAT_TILES],tileSize:256,attribution:SAT_CREDIT});bmap.addLayer({id:"satellite",type:"raster",source:"satellite",paint:{"raster-brightness-max":.55}});[["b-cells","fill"],["b-footprints","fill"]].forEach(([id,type])=>{bmap.addSource(id,{type:"geojson",data:BEMPTY});bmap.addLayer({id,type,source:id,paint:{"fill-color":"#ffffff","fill-opacity":.85,"fill-outline-color":"rgba(0,0,0,0)"}});});bmap.addSource("b-circle",{type:"geojson",data:BEMPTY});bmap.addLayer({id:"b-circle",type:"line",source:"b-circle",paint:{"line-color":"#8a8780","line-width":1,"line-dasharray":[2,2]}});bmap.addSource("b-center",{type:"geojson",data:BEMPTY});bmap.addLayer({id:"b-center",type:"circle",source:"b-center",paint:{"circle-radius":4,"circle-color":"#ffffff"}});const popup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8});bmap.on("mousemove","b-cells",e=>{if(!e.features.length)return;const x=Number(e.features[0].properties.v),text=B.layer==="residents"?`about ${Math.round(x).toLocaleString("en-US")} residents`:`${x.toFixed(1)} m average height`;popup.setLngLat(e.lngLat).setText(text).addTo(bmap);});bmap.on("mouseleave","b-cells",()=>popup.remove());bmap.on("mousemove","b-footprints",e=>{if(B.layer!=="height"||B.heightMode!=="buildings"||!e.features.length)return popup.remove();const x=e.features[0].properties.h;if(x===null||Number(x)===0)return popup.remove();popup.setLngLat(e.lngLat).setText(`average of this 100 m square: ${Number(x).toFixed(1)} m`).addTo(bmap);});bmap.on("mouseleave","b-footprints",()=>popup.remove());B.ready=true;B.v=bQueued;bQueued=null;paintBuilt();});});}else if(B.ready)paintBuilt();else bQueued=B.v;paintBuilt();}
+function loadBuilt(v){if(!layerSet.has(v.slug))return;if(!layerCache[v.slug])layerCache[v.slug]=fetch("layers/"+v.slug+".json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json();});layerCache[v.slug].then(data=>{if(cur===v)setBuilt(data);}).catch(()=>{if(cur===v){$("built").hidden=true;numberSections();}});}
+function builtReset(v){B.v=null;$("bleg").innerHTML="";$("bside").innerHTML="";$("built").hidden=!layerSet.has(v.slug);numberSections();if(!$("built").hidden){const r=$("built").getBoundingClientRect();if(r.top<innerHeight+600&&r.bottom>-600)loadBuilt(v);}}
+function setLayer(v){B.layer=v;paintBuilt();}function setHeightMode(v){B.heightMode=v;paintBuilt();}function setOnTop(v){B.onTop=Boolean(v);paintBuilt();}function setBase(v){B.base=v;paintBuilt();}function setOpacity(v){B.opacity=Math.max(30,Math.min(100,Number(v)));paintBuilt();}
+window.__built={state:B,setLayer,setHeightMode,setOnTop,setBase,setOpacity,get map(){return bmap},get data(){return B.v}};
+
+function renderVenue(v){
+  cur=v;selCat=null;selType=null;v._cells=v._cells||totalCells(v);
+  walkReset(v);
+  builtReset(v);
+  const i=slugIndex[v.slug];
+  document.title=v.name+" · Stadia Urban Observatory";
+  ["tomap1","tomap2","tomap3"].forEach(id=>{$(id).href="#/map/"+v.slug;});
+  $("prev").href="#/venue/"+V[(i-1+V.length)%V.length][0];$("next").href="#/venue/"+V[(i+1)%V.length][0];
+  $("crumbCountry").textContent=v.country||"Country not on record";
+  if(v.country)$("crumbCountry").href="#/map/country/"+encodeURIComponent(v.country);else $("crumbCountry").removeAttribute("href");$("crumbName").textContent=v.name;$("name").textContent=v.name;
+  const meta=$("meta");meta.innerHTML="";
+  [["",v.country],["",v.tags.join(" · ")],[v.openedKind==="rebuilt"?"Rebuilt ":"Opened ",v.opened],["Capacity ",v.capacity?fmt(v.capacity):null],["Data collected ",v.collected]].forEach(([k,val])=>{
+    // Architect as given by the named source, placed right after capacity
+    // (or where capacity would be). Shown only where a source exists.
+    if(k==="Data collected "&&v.architect){const ar=h("span","arch");ar.append("Architect ",h("b",null,v.architect.replace(/; /g," · ")));
+      // The source is printed, not hidden in a tooltip: Wikipedia and hand entries are weaker than Wikidata.
+      if(v.architectSource)ar.append(" ("+v.architectSource+")");meta.append(ar);}
+    if(!val)return;const s=h("span");s.append(k,h("b",null,String(val)));meta.append(s);});
+  const lede=$("lede");lede.innerHTML="";v.lede.forEach(t=>lede.append(h("li",t.startsWith("A count this low")?"caveat":"",t)));
+  buildSat(v);
+
+  const cats=$("cats");cats.innerHTML="";const maxCat=v.cats.length?v.cats[0][1]:1;
+  v.cats.forEach(([name,c],j)=>{const li=h("li"),b=h("button");b.type="button";
+    const tr=h("span","track"),fl=h("span","fill");fl.style.width=(100*c/maxCat)+"%";tr.append(fl);
+    b.append(h("span","nm",name),tr,h("span","val",fmt(c)+" · "+Math.round(100*c/v.n)+"%"));b.addEventListener("click",()=>pickCat(j));li.append(b);cats.append(li);});
+  paintTypes();paintCircle();
+
+  const svg=$("rings");svg.innerHTML="";
+  const W=760,H=300,L=44,B=34,T=14,nR=v.ringDensity.length,bw=(W-L)/nR,maxD=Math.max(1,...v.ringDensity),best=v.ringDensity.indexOf(Math.max(...v.ringDensity));
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  [0,0.5,1].forEach(f=>{const y=T+(H-T-B)*(1-f);svg.append(el("line",{x1:L,x2:W,y1:y,y2:y,stroke:"#2a2a2a"}),el("text",{x:L-8,y:y+3,"text-anchor":"end"},fmt(Math.round(maxD*f))));});
+  const bars=[];
+  v.ringDensity.forEach((d,j)=>{const bh=(H-T-B)*d/maxD;
+    const rect=el("rect",{x:L+j*bw+2,y:H-B-bh,width:bw-4,height:Math.max(bh,d>0?1:0),fill:"#fff","class":"bar",tabindex:0,role:"button","aria-label":`${j*CFG.ring} to ${(j+1)*CFG.ring} m, ${fmt(v.rings[j])} places. Show what is in this ring.`});
+    const pick=()=>{bars.forEach((b,i)=>b.setAttribute("fill",i===j?ACCENT:"#fff"));paintRingMix(v,j);};
+    rect.addEventListener("click",pick);rect.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pick();}});bars.push(rect);
+    rect.addEventListener("mousemove",e=>{tip.hidden=false;tip.innerHTML="";tip.append(`${j*CFG.ring} to ${(j+1)*CFG.ring} m · ${fmt(Math.round(d))} per km²`);
+      tip.append(h("span",null,`${ordinal(v.ringRank[j])} of ${V.length} venues in this ring · ${fmt(v.rings[j])} places`));
+      tip.style.left=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8)+"px";tip.style.top=(e.clientY-34)+"px";});
+    rect.addEventListener("mouseleave",()=>{tip.hidden=true;});svg.append(rect);
+    if(j%2===0)svg.append(el("text",{x:L+j*bw,y:H-B+16,"text-anchor":"middle"},j*CFG.ring+(j===0?" m":"")));});
+  svg.append(el("text",{x:W,y:H-B+16,"text-anchor":"end"},CFG.radius+" m"),el("text",{x:L,y:H-4},"distance from the stadium, straight line"),el("text",{x:L,y:9},"places per km²"));
+  bars[best].setAttribute("fill",ACCENT);paintRingMix(v,best);   // opens on the densest ring, the one the lede names
+  const big=(id,val)=>{const n=$(id);n.innerHTML="";if(val==null){n.textContent="n/a";return;}n.append(fmt(val),h("small",null,"m"));};
+  big("medLin",v.medLin);big("medNet",v.medNet);
+
+  const strips=$("strips");strips.innerHTML="";
+  // ends: words for the two ends of the scale. top: true where the reader expects "1st" to mean the most.
+  [{key:"places",lab:"Mapped places",sub:"within 1.5 km",f:x=>fmt(x),log:true,ends:["fewest","most"],top:true},
+   {key:"cellMix",lab:"Mix of kinds",sub:"average over cells, 0 to 1",f:x=>x.toFixed(2),ends:["one kind","evenly mixed"],top:true,none:"too few places to compute"},
+   {key:"medianDist",lab:"Median distance by street",sub:"stadium to places",f:x=>fmt(x)+" m",ends:["nearest","farthest"]},
+   {key:"built",lab:"Built share of the circle",sub:"building footprints within 1.5 km",f:x=>x.toFixed(1)+"%",ends:["least built","most built"],top:true},
+   {key:"intersections",lab:"Street intersections",sub:"three or more segments meet, within 1.5 km, footpaths included",f:x=>fmt(x),ends:["fewest","most"],top:true},
+   {key:"blockLength",lab:"Average block length",sub:"street segment between corners, footpaths included",f:x=>x+" m",ends:["shortest","longest"]}].forEach(o=>{
+    const all=STUDY[o.key],mine=v.study[o.key],f=o.f,log=o.log;
+    const row=h("div","strip"),l=h("div","lab",o.lab);l.append(h("small",null,o.sub+(log?" · log scale":"")));
+    const s=document.createElementNS(NS,"svg"),W2=900,H2=46;s.setAttribute("viewBox",`0 0 ${W2} ${H2}`);
+    const tf=x=>log?Math.log10(Math.max(1,x)):x,lo=tf(all[0]),hi=tf(all[all.length-1]),X=x=>6+(W2-12)*(hi>lo?(tf(x)-lo)/(hi-lo):0.5);
+    s.append(el("line",{x1:0,x2:W2,y1:H2-10,y2:H2-10,stroke:"#2a2a2a"}));
+    all.forEach(x=>s.append(el("line",{x1:X(x),x2:X(x),y1:14,y2:H2-10,stroke:"#fff","stroke-opacity":0.22,"stroke-width":1})));
+    s.append(el("text",{x:0,y:H2,"text-anchor":"start"},o.ends[0]+" · "+f(all[0])),el("text",{x:W2,y:H2,"text-anchor":"end"},f(all[all.length-1])+" · "+o.ends[1]));
+    const val=h("div","val");
+    if(mine!=null){s.append(el("line",{x1:X(mine),x2:X(mine),y1:2,y2:H2-10,stroke:ACCENT,"stroke-width":3}));
+      const above=all.filter(x=>x>mine).length,below=all.filter(x=>x<mine).length;
+      val.append(f(mine),h("small",null,o.top?`${ordinal(above+1)} of ${all.length} · 1st = ${o.ends[1]}`:`${ordinal(below+1)} of ${all.length} · 1st = ${o.ends[0]}`));}
+    else val.textContent=o.none||"not on record";
+    // Where only one footprint source exists, say so. It is a fact about the source, not a quality verdict.
+    if(o.key==="built"&&v.built&&v.built.osmOnly)l.append(h("small",null,"All footprints here come from OpenStreetMap."));
+    row.append(l,s,val);strips.append(row);});
+  const nums=$("nums");nums.innerHTML="";
+  [["Intersections",v.net.intersections,""],["Average block",v.net.block,"m"],["Street length",v.net.streetKm,"km"]].forEach(([lab,val,u])=>{
+    const d=h("div");d.append(h("div","mono",lab));const b=h("div","big",val==null?"n/a":fmt(val));if(val!=null&&u)b.append(h("small",null,u));d.append(b);nums.append(d);});
+  updateDmap(v);
+}
+
+// ---- 03: the grid in three dimensions (the logic of the printed models) ----
+function posterRamp(t){
+  t=Math.max(0,Math.min(1,t));
+  const st=[[0,70,18,72],[0.25,138,20,84],[0.5,205,34,62],[0.72,238,104,28],[0.88,250,160,24],[1,255,214,64]];
+  for(let i=0;i<st.length-1;i++)if(t>=st[i][0]&&t<=st[i+1][0]){const f=(t-st[i][0])/(st[i+1][0]-st[i][0]);return[1,2,3].map(k=>Math.round(st[i][k]+(st[i+1][k]-st[i][k])*f));}
+  return[255,214,64];
+}
+// Mix of kinds in one cell: Simpson index, the chance that two places picked at random are of different kinds.
+// The number of places is not part of it, so it reads independently of height.
+function simpson(counts){
+  const n=counts.reduce((a,b)=>a+b,0);if(n<2)return 0;
+  return 1-counts.reduce((a,x)=>a+x*(x-1),0)/(n*(n-1));
+}
+const MIX_TOP=0.9;   // mix value drawn at the bright end of the ramp
+function gridFeatures(v){
+  const N=CFG.gridN,nC=v.cats.length,cells=new Map();
+  v.grid.forEach((a,ci)=>{for(let i=0;i<a.length;i+=2){let c=cells.get(a[i]);if(!c){c={k:a[i],counts:new Array(nC).fill(0),total:0};cells.set(a[i],c);}c.counts[ci]+=a[i+1];c.total+=a[i+1];}});
+  const list=[...cells.values()];let maxCount=1;
+  list.forEach(c=>{c.mix=c.total>=CFG.mixMinPlaces?simpson(c.counts):null;if(c.total>maxCount)maxCount=c.total;});
+  const latH=CFG.radius/M_PER_DEG,lonH=CFG.radius/(M_PER_DEG*Math.cos(v.lat*Math.PI/180)),cLat=2*latH/N,cLon=2*lonH/N;
+  v._cellList=list.map(c=>{const row=Math.floor(c.k/N),col=c.k%N;return{...c,lat:v.lat+latH-(row+0.5)*cLat,lng:v.lng-lonH+(col+0.5)*cLon};});
+  return list.map(c=>{const row=Math.floor(c.k/N),col=c.k%N,w=v.lng-lonH+col*cLon,e=w+cLon,n=v.lat+latH-row*cLat,s=n-cLat;
+    const rgb=posterRamp((c.mix||0)/MIX_TOP);   // too few places for a mix value: lowest color, never gray
+    return{type:"Feature",geometry:{type:"Polygon",coordinates:[[[w,s],[e,s],[e,n],[w,n],[w,s]]]},
+      properties:{col:`rgb(${rgb})`,total:c.total,cats:c.counts.filter(x=>x>0).length,mix:c.mix===null?-1:+c.mix.toFixed(2),hCount:c.total/maxCount}};});
+}
+function circlePoly(lng,lat,rM){const p=[];for(let i=0;i<=72;i++){const a=i/72*2*Math.PI;p.push([lng+rM*Math.cos(a)/(M_PER_DEG*Math.cos(lat*Math.PI/180)),lat+rM*Math.sin(a)/M_PER_DEG]);}return p;}
+let dmap=null,dReady=false,dQueued=null,zones=[];
+const dState={view3d:true,base:"dark",maxH:700};
+function paintZones(){
+  const box=$("zones");box.innerHTML="";
+  if(!zones.length)box.append(h("p",null,`Click the map to drop a zone on a cluster. Up to ${MAX_ZONES} zones.`));
+  zones.forEach((z,i)=>{
+    let n=0;const counts=new Array(cur.cats.length).fill(0);
+    cur._cellList.forEach(c=>{const dx=(c.lng-z.lng)*M_PER_DEG*Math.cos(z.lat*Math.PI/180),dy=(c.lat-z.lat)*M_PER_DEG;
+      if(dx*dx+dy*dy<=z.r*z.r){n+=c.total;c.counts.forEach((x,j)=>{counts[j]+=x;});}});
+    const present=counts.filter(x=>x>0).length,topI=counts.indexOf(Math.max(...counts));
+    const d=h("div","zone"),zh=h("div","zh"),sw=h("span","sw");sw.style.borderColor=ZONE_COLORS[i];
+    zh.append(sw,h("b",null,"Zone "+(i+1)),h("span","r","r = "+z.r+" m"));
+    [["−",-50],["+",50]].forEach(([t,dv])=>{const b=h("button",null,t);b.title="Change radius by 50 m";b.addEventListener("click",()=>{z.r=Math.max(100,Math.min(750,z.r+dv));paintZones();});zh.append(b);});
+    const x=h("button",null,"×");x.title="Remove zone";x.addEventListener("click",()=>{zones.splice(i,1);paintZones();});zh.append(x);
+    const dl=h("dl");[["Places",fmt(n)],["Kinds present",present+" of "+cur.cats.length],["Mix of kinds",n>=CFG.mixMinPlaces?simpson(counts).toFixed(2):"too few places"],["Most common",n?cur.cats[topI][0]:"none"]].forEach(([a,b])=>dl.append(h("dt",null,a),h("dd",null,b)));
+    d.append(zh,dl);box.append(d);
+  });
+  if(zones.length)box.append(h("p",null,"Zones count whole cells whose center falls inside the circle."));
+  if(dReady)dmap.getSource("zones").setData({type:"FeatureCollection",features:zones.map((z,i)=>({type:"Feature",geometry:{type:"Polygon",coordinates:[circlePoly(z.lng,z.lat,z.r)]},properties:{color:ZONE_COLORS[i]}}))});
+}
+function paintCtl(){
+  const box=$("ctl");box.innerHTML="";
+  const seg=(label,key,opts)=>{const row=h("div","seg"),grp=h("div");row.append(h("span","mono",label),grp);
+    opts.forEach(([val,t])=>{const b=h("button",null,t);b.setAttribute("aria-pressed",String(dState[key]===val));b.addEventListener("click",()=>{dState[key]=val;paintCtl();applyD(key==="view3d");});grp.append(b);});box.append(row);};
+  seg("View","view3d",[[true,"3D"],[false,"2D"]]);
+  seg("Base","base",[["dark","Dark"],["sat","Satellite"]]);
+  const leg=$("leg");leg.innerHTML="";
+  const r=h("div");r.style.cssText="display:flex;align-items:center;gap:8px;margin-bottom:5px";r.append("one kind",h("div","ramp"),"evenly mixed");leg.append(r);
+  leg.append(h("div",null,`Cells with fewer than ${CFG.mixMinPlaces} places take the lowest color: too few to compute a mix.`));
+  if(dState.view3d)leg.append(h("div",null,"Height: number of places in the cell. Relative, not physical."));
+}
+function applyD(cam){
+  if(!dReady)return;
+  dmap.setLayoutProperty("cells-3d","visibility",dState.view3d?"visible":"none");
+  dmap.setLayoutProperty("cells-flat","visibility",dState.view3d?"none":"visible");
+  dmap.setLayoutProperty("sat","visibility",dState.base==="sat"?"visible":"none");
+  dmap.setPaintProperty("cells-3d","fill-extrusion-height",["*",["get","hCount"],dState.maxH]);
+  if(cam){dmap.easeTo(dState.view3d?{pitch:55,bearing:-25,duration:700}:{pitch:0,bearing:0,duration:700});dmap.once("moveend",()=>{if(cur)fitD(cur);});}
+}
+function updateDmap(v){
+  zones=[];const feats=gridFeatures(v);paintCtl();paintZones();
+  if(!dmap){
+    dQueued=[v,feats];
+    basemapStyle().then(style=>{
+      dmap=new maplibregl.Map({container:"dmap",style,center:[v.lng,v.lat],zoom:13,pitch:55,bearing:-25,maxPitch:75,attributionControl:false,cooperativeGestures:true});
+      dmap.addControl(new maplibregl.AttributionControl({compact:true}),"bottom-right");
+      new ResizeObserver(()=>dmap.resize()).observe($("dmap"));
+      dmap.on("load",()=>{
+        dmap.getStyle().layers.forEach(l=>{if(l.type==="symbol")dmap.setLayoutProperty(l.id,"visibility","none");});
+        dmap.addSource("sat",{type:"raster",tiles:[SAT_TILES],tileSize:256,attribution:SAT_CREDIT});
+        dmap.addLayer({id:"sat",type:"raster",source:"sat",layout:{visibility:"none"},paint:{"raster-brightness-max":0.55}});
+        dmap.addSource("cells",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+        dmap.addLayer({id:"cells-flat",type:"fill",source:"cells",layout:{visibility:"none"},paint:{"fill-color":["get","col"],"fill-opacity":0.88}});
+        dmap.addLayer({id:"cells-3d",type:"fill-extrusion",source:"cells",paint:{"fill-extrusion-color":["get","col"],"fill-extrusion-height":["*",["get","hCount"],700],"fill-extrusion-opacity":0.94}});
+        dmap.addSource("zones",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+        dmap.addLayer({id:"zones-fill",type:"fill",source:"zones",paint:{"fill-color":["get","color"],"fill-opacity":0.07}});
+        dmap.addLayer({id:"zones-line",type:"line",source:"zones",paint:{"line-color":["get","color"],"line-width":2,"line-dasharray":[2,2]}});
+        dmap.addSource("stad",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+        dmap.addLayer({id:"stad",type:"circle",source:"stad",paint:{"circle-radius":7,"circle-color":"#fff","circle-stroke-width":3,"circle-stroke-color":"rgba(255,255,255,0.35)"}});
+        const pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:10});
+        ["cells-flat","cells-3d"].forEach(id=>{
+          dmap.on("mousemove",id,e=>{const p=e.features[0].properties;pop.setLngLat(e.lngLat).setText(`${p.total} place${p.total!=1?"s":""} · ${p.cats} kind${p.cats!=1?"s":""}`+(p.mix>=0?` · mix ${(+p.mix).toFixed(2)}`:"")).addTo(dmap);});
+          dmap.on("mouseleave",id,()=>pop.remove());});
+        dmap.getCanvas().style.cursor="crosshair";
+        dmap.on("click",e=>{if(zones.length<MAX_ZONES){zones.push({lng:e.lngLat.lng,lat:e.lngLat.lat,r:ZONE_R});paintZones();}});
+        dReady=true;const[q,f]=dQueued;dQueued=null;setD(q,f);
+      });
+    });
+  }else if(dReady)setD(v,feats);else dQueued=[v,feats];
+}
+// Fit the 1.5 km circle inside the frame as it is actually drawn (tilted and rotated in 3D), whatever the frame size.
+// fitBounds fits the flat square, which in 3D either leaves margins or runs off the bottom.
+function fitD(v){
+  const box=dmap.getContainer(),W=box.clientWidth,H=box.clientHeight;if(!W||!H)return;
+  const pad=dState.view3d?{t:90,b:28,l:28,r:28}:{t:24,b:24,l:24,r:24};   // towers rise above the ground circle
+  const ring=circlePoly(v.lng,v.lat,CFG.radius);
+  const bb=()=>{let a=1e9,b=1e9,c=-1e9,d=-1e9;ring.forEach(p=>{const q=dmap.project(p);a=Math.min(a,q.x);b=Math.min(b,q.y);c=Math.max(c,q.x);d=Math.max(d,q.y);});return[a,b,c,d];};
+  for(let k=0;k<4;k++){
+    let[a,b,c,d]=bb();
+    dmap.setZoom(dmap.getZoom()+Math.log2(Math.min((W-pad.l-pad.r)/(c-a),(H-pad.t-pad.b)/(d-b))));
+    [a,b,c,d]=bb();
+    dmap.panBy([(a+c)/2-(pad.l+W-pad.r)/2,(b+d)/2-(pad.t+H-pad.b)/2],{duration:0});
+  }
+}
+function setD(v,feats){
+  dmap.getSource("cells").setData({type:"FeatureCollection",features:feats});
+  dmap.getSource("stad").setData({type:"Feature",geometry:{type:"Point",coordinates:[v.lng,v.lat]},properties:{}});
+  dmap.getSource("zones").setData({type:"FeatureCollection",features:[]});
+  const latH=CFG.radius/M_PER_DEG,lonH=CFG.radius/(M_PER_DEG*Math.cos(v.lat*Math.PI/180));
+  dmap.resize();
+  dmap.fitBounds([[v.lng-lonH,v.lat-latH],[v.lng+lonH,v.lat+latH]],{padding:30,duration:0,pitch:dState.view3d?55:0,bearing:dState.view3d?-25:0});
+  fitD(v);
+  applyD(false);
+}
+
+// ================= ROUTER =================
+// #/            landing            #/map            map
+// #/map/<slug>  map on a venue     #/venue/<slug>   venue page
+function route(){
+  const m=location.hash.match(/^#\/(map|venue)(?:\/(country)\/(.+)|\/(.+))?$/),kind=m?m[1]:null;
+  const country=m&&m[2]?decodeURIComponent(m[3]):null,slug=m&&m[4]?decodeURIComponent(m[4]):null;
+  const i=slug!=null?slugIndex[slug]:undefined;
+  tip.hidden=true;
+  if(kind==="venue"&&typeof i==="number"){
+    document.body.dataset.view="venue";document.body.classList.remove("in-map","scrolled");window.scrollTo(0,0);lastView="venue";
+    loadVenue(slug).then(v=>{if(decodeURIComponent(location.hash)==="#/venue/"+slug)renderVenue(v);})
+      .catch(e=>{console.warn(e);$("name").textContent=V[i][1];$("lede").innerHTML="";$("lede").append(h("li","caveat","This venue's data could not be loaded. Reload the page to try again."));});
+    return;
+  }
+  document.body.dataset.view="home";document.title="Stadia Urban Observatory";
+  if(map)map.resize();
+  if(kind==="map")enterMap(country!==null?country:i);
+  else{exitMap();if(location.hash.length>1&&!location.hash.startsWith("#/")){const t=document.querySelector(location.hash);if(t)t.scrollIntoView();}}
+  lastView="home";
+  if(map)setTimeout(()=>map.resize(),60);
+}
+addEventListener("hashchange",route);
+addEventListener("keydown",e=>{
+  if(e.key!=="Escape")return;
+  if(document.body.dataset.view==="venue"&&cur)location.hash="#/map/"+cur.slug;
+  else if(document.body.classList.contains("in-map")){
+    if(mapAt.venue!==null&&mapAt.country)location.hash="#/map/country/"+encodeURIComponent(mapAt.country);
+    else if(mapAt.venue!==null||mapAt.country)location.hash="#/map";
+    else location.hash="#/";
+  }
+});
+
+fetch(AGG+"index.json").then(r=>{if(!r.ok)throw new Error("index: HTTP "+r.status);return r.json();}).then(ix=>{
+  V=ix.venues;CFG=ix.cfg;STUDY=ix.study;V.forEach((v,i)=>{slugIndex[v[0]]=i;});
+  initHome(ix.atlas);initSearch();initMap();route();
+}).catch(e=>{console.error(e);document.body.classList.add("failed");});
+</script>
+<script>
+// GoatCounter: visit counts without cookies. Routes live in the hash, so count them by hand.
+window.goatcounter={no_onload:true};
+function gcCount(){if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:location.pathname+location.search+location.hash});}
+addEventListener("hashchange",gcCount);
+</script>
+<script data-goatcounter="https://stadia-observatory.goatcounter.com/count" async src="//gc.zgo.at/count.js" onload="gcCount()"></script>
+</body>
+</html>
